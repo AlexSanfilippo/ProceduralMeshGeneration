@@ -45,7 +45,7 @@ from TextureLoader import load_texture
 import pyrr
 import numpy as np
 import math
-from math import sin, cos, pi, sqrt
+from math import sin, cos, pi, sqrt, floor, ceil
 from random import random
 
 vertex_src = """
@@ -401,7 +401,7 @@ class PrimativeMesh():
                 face.outer_vertices[1],
                 face.outer_vertices[2]
             ])
-            triangle_vertices[0].texture_coords = glm.vec2([
+            triangle_vertices[0].texture_coordinates = glm.vec2([
                 texture_coordinates[0].x,
                 texture_coordinates[0].y
             ])
@@ -412,7 +412,7 @@ class PrimativeMesh():
                 face.outer_vertices[3 * i + 1 + 3 * 1],
                 face.outer_vertices[3 * i + 2 + 3 * 1]
             ])
-            triangle_vertices[1].texture_coords = glm.vec2([
+            triangle_vertices[1].texture_coordinates = glm.vec2([
                 texture_coordinates[texture_index].x,
                 texture_coordinates[texture_index].y
             ])
@@ -423,7 +423,7 @@ class PrimativeMesh():
                 face.outer_vertices[3 * i + 1 + 3 * 2],
                 face.outer_vertices[3 * i + 2 + 3 * 2]
             ])
-            triangle_vertices[2].texture_coords = glm.vec2([
+            triangle_vertices[2].texture_coordinates = glm.vec2([
                 texture_coordinates[texture_index + 1].x,
                 texture_coordinates[texture_index + 1].y
             ])
@@ -438,18 +438,27 @@ class PrimativeMesh():
             texture_index += 1
         return vertices
 
-    def _generate_polygonal_face(self, initial_angle, number_of_sides, radius=1.0):
+    def _generate_polygonal_face(self, initial_angle, number_of_sides, radius=1.0, transform_x=1.0, transform_z=1.0):
         face = Face()
         face.outer_vertices = self.generate_outer_vertices(
             number_of_sides=number_of_sides,
             initial_angle=initial_angle,
-            radius=radius
+            radius=radius,
+            transform_x=transform_x,
+            transform_z=transform_z,
         )
         face.offset_outer_vertices(offset=glm.vec3([0.0, -1.0, 0.0]))
         face.vertices = self.outer_vertices_to_vertices(number_of_sides=number_of_sides, face=face)
         return face
 
-    def generate_outer_vertices(self, number_of_sides=4, initial_angle=None, radius=1.0):
+    def generate_outer_vertices(
+            self,
+            number_of_sides=4,
+            initial_angle=None,
+            radius=1.0,
+            transform_x=1.0,
+            transform_z=1.0,
+    ):
         """
         generates the vertices of a simple polygon-no repeats
         used for excuding and stitching, not for drawing
@@ -459,8 +468,8 @@ class PrimativeMesh():
         if initial_angle == None:
             initial_angle = pi / number_of_sides
         for i in range(1, int(number_of_sides) + 1):
-            x_coord = cos(initial_angle + angle_of_rotation * -i) * radius
-            z_coord = sin(initial_angle + angle_of_rotation * -i) * radius
+            x_coord = cos(initial_angle + angle_of_rotation * -i) * radius * transform_x
+            z_coord = sin(initial_angle + angle_of_rotation * -i) * radius * transform_z
             outer_vertices += [x_coord, 0.0, z_coord]
         return outer_vertices
 
@@ -703,7 +712,7 @@ class PrimativeMesh():
         for point in vertices_border:
             current_vertex = Vertex()
             current_vertex.positions = point
-            current_vertex.texture_coords = calculate_texture_coordinates_from_control_points(
+            current_vertex.texture_coordinates = calculate_texture_coordinates_from_control_points(
                 point=point,
                 control_points=control_points
             )
@@ -726,7 +735,7 @@ class PrimativeMesh():
         for point in vertices_cut:
             current_vertex = Vertex()
             current_vertex.positions = point
-            current_vertex.texture_coords = calculate_texture_coordinates_from_control_points(
+            current_vertex.texture_coordinates = calculate_texture_coordinates_from_control_points(
                 point=point,
                 control_points=control_points
             )
@@ -756,8 +765,6 @@ class PrimativeMesh():
                     face_a.outer_vertices[side * 3 + 0], face_a.outer_vertices[side * 3 + 1], face_a.outer_vertices[side * 3 + 2],
                     face_a.outer_vertices[0 * 3 + 0], face_a.outer_vertices[0 * 3 + 1],face_a.outer_vertices[0 * 3 + 2],
                     face_b.outer_vertices[0 * 3 + 0], face_b.outer_vertices[0 * 3 + 1],face_b.outer_vertices[0 * 3 + 2],
-
-
                 ]
             else:
                 face.outer_vertices = [
@@ -945,73 +952,432 @@ class Spaceship(PrimativeMeshEmission):
         'forward': [0.0, 1.0, 0.0],
         'backward': [0.0, -1.0, 0.0],
     }
-    def generate_vertices(self):
 
-        #first face
-        number_of_sides = 6
-        number_of_segments = 1
-        length_of_segment = 3.0
-        faces = [self._generate_polygonal_face(initial_angle=pi / number_of_sides, number_of_sides=number_of_sides, radius=4.0)]
+    def __init__(
+        self,
+        shader,
+        # material properties
+        diffuse,
+        specular,
+        emission,
+        shininess=32.0,
+        # mesh properties
+        dimensions=[5.0, 5.0],
+        position=[0.0, 0.0, 0.0],
+        rotation_magnitude=0,
+        rotation_axis=glm.vec3([0.0, 0.0, 1.0]),
+        scale=glm.vec3([1.0, 1.0, 1.0]),
+        number_of_sides=4,
+        number_of_segments=4,
+        transform_x=1.0,
+        transform_z=1.0,
+        length_of_segment=1.0,
+        radius=1.0,
+    ):
+        self.number_of_sides = number_of_sides
+        self.number_of_segments = number_of_segments
+        self.transform_x = transform_x
+        self.transform_z = transform_z
+        self.length_of_segment = length_of_segment
+        self.radius = radius
+        super().__init__(
+            shader=shader,
+            # material properties
+            diffuse=diffuse,
+            specular=specular,
+            shininess=shininess,
+            emission=emission,
+            # mesh properties
+            dimensions=dimensions,
+            position=position,
+            rotation_magnitude=rotation_magnitude,
+            rotation_axis=rotation_axis,
+            scale=scale,
+        )
+    def generate_vertices(self):
+        '''
+        Where the mesh is generated, vertex by vertex.
+        :return:
+        '''
+        faces = [
+            self._generate_polygonal_face(
+                initial_angle=pi / self.number_of_sides,
+                number_of_sides=self.number_of_sides,
+                radius=self.radius,
+                transform_x=self.transform_x,
+                transform_z=self.transform_z,
+            )
+        ]
         faces[0].update_texture_coords_using_atlas_index(texture_atlas_index=1, texture_atlas_size=2)
 
-        # generate the second face via extrude
-        all_stitch_faces = []
-        radius = 1.0
-        for i in range(number_of_segments):
+        # generate the latter faces via extruding
+        segment_faces = []
+        radius_multiplier_current_segment = 1.0
+        current_radius = self.radius
+        MINIMUM_RADIUS = 2.5
+        MAXIMUM_RADIUS = 4.0 + self.number_of_segments*0.5
+        for i in range(self.number_of_segments):
             face_extruded = Face()
-            if i < math.floor(number_of_segments/4):
-                radius *= 1.05
-            else:
-                if radius > 1.0:
-                    radius = 1.0
-                radius *= 0.97
-            direction = faces[i].calculate_normal()
+            radius_multiplier_current_segment = self.determine_radius(
+                i,
+                self.number_of_segments,
+                radius_multiplier_current_segment,
+                minimum_radius_multipler=0.5,
+                maximum_radius_multipler=2.0,
+                growth=1.0 + random()*3,
+                shrinkage=random()*0.5 + 0.5,
+
+            )
+            current_radius *= radius_multiplier_current_segment
+            if current_radius < MINIMUM_RADIUS or current_radius > MAXIMUM_RADIUS:
+                radius_multiplier_current_segment = 1.0
             # old extrude-want to replace with one that does flip the face around properly for texturing
             face_extruded.extrude_from_other_face(
                 other=faces[i],
-                direction=list(direction),
-                distance=length_of_segment,
+                direction=list(faces[i].calculate_normal()),
+                distance=self.length_of_segment,
                 flip_base=True,
-                radius=radius
+                scale=radius_multiplier_current_segment
             )
             faces.append(face_extruded)
-            faces_from_stitch = self.stitch_faces(face_a=faces[i], face_b=faces[i+1], number_of_faces=number_of_sides)
-            all_stitch_faces += faces_from_stitch
+            faces_from_stitch = self.stitch_faces(
+                face_a=faces[i],
+                face_b=faces[i+1],
+                number_of_faces=self.number_of_sides
+            )
+            segment_faces += faces_from_stitch
+        faces[-1].update_texture_coords_using_atlas_index(
+            texture_atlas_index=3,
+            texture_atlas_size=2,
+        )
+        #todo: re-enable add_detail and stop appending segment faces
+        # for face in segment_faces:
+        #     face.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=2)
+        # faces += segment_faces
+        faces += self.add_detail_to_faces(faces_to_alter=segment_faces)
 
-        new_stitch_faces = []
-        for face in all_stitch_faces:
-            if random() < 0.25:
-                current_stitch_faces = []
-                current_stitch_faces += self.subdivide_quad_lengthwise(face=face, subdivisions=2, widthwise=True)
-                for new_stitch_face in current_stitch_faces:
-                    new_stitch_faces += self.bevel_cut(original_face=new_stitch_face, bevel_depths=[-0.33], border_sizes=[0.6], depth=1)
-            elif random() < 0.25:
-                current_stitch_faces = []
-                current_stitch_faces += self.pyrimidize_face(original_face=face, center_point_offset=2.5)
-                new_stitch_faces += current_stitch_faces
-            elif random() < 0.5:
-                current_stitch_faces = []
-                face.calculate_outer_vertices_as_vec3()
-                face_extrude = Face()
-                face_normal = face.calculate_normal()
-                face_extrude.extrude_from_other_face(other=face, direction=face_normal,distance=1, radius=1.0)
-                current_stitch_faces += [face_extrude]
-                current_stitch_faces += self.stitch_faces(face_a=face, face_b=face_extrude, number_of_faces=4)
-                new_stitch_faces += current_stitch_faces
+        faces += self.generate_nose(face=faces[0])
+        del faces[0]
 
+        return self.serialize_faces(faces)
+
+    def generate_nose(self, face):
+        faces_nose = []
+        face_nose_tip = Face()
+        face_nose_tip.extrude_from_other_face(
+            other=face,
+            direction=list(-face.calculate_normal()),
+            distance=self.length_of_segment * (0.25 + random()*1.25),
+            scale=random()*.2 + .1,
+        )
+
+        faces_from_stitch = self.stitch_faces(
+            face_a=face_nose_tip,
+            face_b=face,
+            number_of_faces=self.number_of_sides
+        )
+
+        face_nose_tip.calculate_outer_vertices_as_vec3()
+        face_nose_tip.outer_vertices_vec3.reverse()
+        face_nose_tip.outer_vertices = vec3_list_to_list(face_nose_tip.outer_vertices_vec3)
+        face_nose_tip.vertices = face_nose_tip.outer_vertices_to_vertices(
+            number_of_sides=self.number_of_sides,
+            reverse_texture_coords=True,
+
+        )
+
+        #texturing
+        face_nose_tip.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=1)
+        for face in faces_from_stitch:
+            face.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=2)
+
+        #return new faces
+        faces_nose += [face_nose_tip] + faces_from_stitch
+        return faces_nose
+    def determine_radius(
+            self,
+            i,
+            number_of_segments,
+            radius_multiplier,
+            minimum_radius_multipler,
+            maximum_radius_multipler,
+            growth=1.25,
+            shrinkage=0.5,
+    ):
+
+        if i < floor(random() * number_of_segments):
+            radius_multiplier = min(growth*radius_multiplier, maximum_radius_multipler)
+        else:
+            if radius_multiplier > 1.0:
+                radius_multiplier = 1.0
+            radius_multiplier = max(shrinkage*radius_multiplier, minimum_radius_multipler)
+        return radius_multiplier
+
+    # def add_detail_to_faces(self, faces_to_alter):
+    #     faces_altered = []
+    #     for face in faces_to_alter:
+    #         if random() < 0.25:
+    #             current_stitch_faces = []
+    #             current_stitch_faces += self.subdivide_quad_lengthwise(face=face, subdivisions=2, widthwise=True)
+    #             for new_stitch_face in current_stitch_faces:
+    #                 faces_altered += self.bevel_cut(
+    #                     original_face=new_stitch_face,
+    #                     bevel_depths=[-0.33],
+    #                     border_sizes=[0.6],
+    #                     depth=1,
+    #                 )
+    #         elif random() < 0.25:
+    #             current_stitch_faces = []
+    #             current_stitch_faces += self.pyrimidize_face(original_face=face, center_point_offset=2.5)
+    #             faces_altered += current_stitch_faces
+    #         elif random() < 0.5:
+    #             current_stitch_faces = self.extrude_and_stitch(face, scale=1.0, distance=floor(self.length_of_segment*0.25))
+    #             recursion_count = 1
+    #             for i in range(recursion_count):
+    #                 final_faces = []
+    #                 for face in current_stitch_faces:
+    #                     final_faces += self.extrude_and_stitch(face, scale=1.0, distance=floor(self.length_of_segment*0.25))
+    #                 current_stitch_faces = final_faces
+    #
+    #             faces_post_bevel = []
+    #             for face in final_faces:
+    #                 faces_post_bevel += self.bevel_cut(
+    #                     original_face=face,
+    #                     bevel_depths=[0.33],
+    #                     border_sizes=[0.6],
+    #                     depth=1,
+    #                 )
+    #             faces_altered += faces_post_bevel
+    #
+    #         else:
+    #             faces_altered += [face]
+    #     for face in faces_altered:
+    #         face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
+    #     return faces_altered
+
+    def add_detail_to_faces(self, faces_to_alter):
+
+        #todo: this assumes 4 sides.  Need N-sided system
+            #3, 6, 9 should have 3-way symmetry (60-degree sameness)
+            #4, 8, 10, 12 should be same on opposite side faces (?)
+            #5, 7, 11, tbd
+        #combine these loops in refactor
+
+        if self.number_of_sides % 3 == 0:
+            symmetry_type = 'triangular'
+        elif self.number_of_sides % 2 == 0:
+            symmetry_type = 'square'
+        else:
+            symmetry_type = 'irregular'
+
+        instructions_per_segment = []
+        for index_segment in range(self.number_of_segments):
+            if symmetry_type == 'square':
+                number_of_pairs = int(self.number_of_sides / 2)
+                instructions_per_pair = []
+                for i in range(number_of_pairs):
+                    instructions_per_pair.append(random())
+                instructions_per_segment.append(instructions_per_pair)
+            elif symmetry_type == 'triangular':
+                # instructions_per_segment.append((random(), random(), random()))
+                number_of_triplets = int(self.number_of_sides / 3)
+                instructions_per_pair = []
+                for i in range(number_of_triplets):
+                    instructions_per_pair.append(random())
+                instructions_per_segment.append(instructions_per_pair)
             else:
-                new_stitch_faces += [face]
-        for face in new_stitch_faces:
+                instructions_per_segment.append((random(),) * self.number_of_sides)
+
+        faces_altered = []
+        faces_unaltered = []
+        for index_segment in range(self.number_of_segments):
+
+            faces_paired = {}
+            if symmetry_type == 'square':
+                number_of_pairs = int(self.number_of_sides / 2)
+                for index_pair in range(number_of_pairs):
+                    if self.number_of_sides == 8:
+                        if index_pair == 1 or index_pair == 3:
+                            faces_paired[index_pair] = [
+                                faces_to_alter[index_segment * self.number_of_sides + index_pair],
+                                faces_to_alter[index_segment * self.number_of_sides + index_pair + number_of_pairs]
+                            ]
+                        elif index_pair == 0:
+                            faces_paired[index_pair] = [
+                                faces_to_alter[index_segment * self.number_of_sides + index_pair],
+                                faces_to_alter[index_segment * self.number_of_sides + 6]
+                            ]
+                        else:
+                            faces_paired[index_pair] = [
+                                faces_to_alter[index_segment * self.number_of_sides + 4],
+                                faces_to_alter[index_segment * self.number_of_sides + 2]
+                            ]
+                    else:
+                        faces_paired[index_pair] = [
+                            faces_to_alter[index_segment * self.number_of_sides + index_pair],
+                            faces_to_alter[index_segment * self.number_of_sides + index_pair + number_of_pairs]
+                        ]
+                    faces_altered_local, faces_unaltered_local = self.detail_faces_by_instruction(
+                        faces_altered=faces_altered,
+                        index_segment=index_segment,
+                        instructions_per_segment=instructions_per_segment,
+                        faces_paired=faces_paired[index_pair],
+                        index_instruction=index_pair,
+                    )
+                    faces_altered += faces_altered_local
+                    faces_unaltered += faces_unaltered_local
+            if symmetry_type == 'triangular':
+                number_of_triplets = int(self.number_of_sides / 3)
+                for index_pair in range(number_of_triplets):
+                    faces_paired[index_pair] = [
+                        faces_to_alter[index_segment * self.number_of_sides + index_pair],
+                        faces_to_alter[index_segment * self.number_of_sides + index_pair + number_of_triplets],
+                        faces_to_alter[index_segment * self.number_of_sides + index_pair + number_of_triplets * 2],
+                    ]
+                    faces_altered_local, faces_unaltered_local = self.detail_faces_by_instruction(
+                        faces_altered=faces_altered,
+                        index_segment=index_segment,
+                        instructions_per_segment=instructions_per_segment,
+                        faces_paired=faces_paired[index_pair],
+                        index_instruction=index_pair,
+                    )
+                    faces_altered += faces_altered_local
+                    faces_unaltered += faces_unaltered_local
+            if symmetry_type == 'irregular':
+                for index_side in range(self.number_of_sides):
+                    faces_altered_local, faces_unaltered_local = self.detail_faces_by_instruction(
+                        faces_altered=faces_altered,
+                        index_segment=index_segment,
+                        instructions_per_segment=instructions_per_segment,
+                        faces_paired=[faces_to_alter[index_side + index_segment*self.number_of_sides]],
+                        index_instruction=index_side,
+                    )
+                    faces_altered += faces_altered_local
+                    faces_unaltered += faces_unaltered_local
+
+
+        #todo: texturing should happen within detail-applying-functions.
+        for face in faces_altered:
             face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
-        faces += new_stitch_faces
+        for face in faces_unaltered:
+            face.update_texture_coords_using_atlas_index(texture_atlas_index=1, texture_atlas_size=2)
+        return faces_altered + faces_unaltered
+
+
+
+
+
+        # faces_altered = []
+        # for face in faces_to_alter:
+        #     if random() < 0.25:
+        #         faces_altered = self.add_detail_cubbies(face, faces_altered)
+        #     elif random() < 0.25:
+        #         faces_altered = self.add_detail_pyrimide(face, faces_altered)
+        #     elif random() < 0.5:
+        #         faces_altered = self.add_detail_recursive_extrude(face, faces_altered)
+        #
+        #     else:
+        #         faces_altered += [face]
+        # for face in faces_altered:
+        #     face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
+        # return faces_altered
+
+    def add_detail_recursive_extrude(self, face):
+        local_faces_altered = []
+        current_stitch_faces = self.extrude_and_stitch(face, scale=1.0, distance=floor(self.length_of_segment * 0.25))
+        recursion_count = 1
+        for i in range(recursion_count):
+            final_faces = []
+            for face in current_stitch_faces:
+                final_faces += self.extrude_and_stitch(face, scale=1.0, distance=floor(self.length_of_segment * 0.25))
+            current_stitch_faces = final_faces
+        faces_post_bevel = []
+        for face in final_faces:
+            faces_post_bevel += self.bevel_cut(
+                original_face=face,
+                bevel_depths=[0.33],
+                border_sizes=[0.6],
+                depth=1,
+            )
+        local_faces_altered += faces_post_bevel
+        return local_faces_altered
+
+    def detail_faces_by_instruction(
+        self,
+        faces_altered,
+        index_segment,
+        instructions_per_segment,
+        faces_paired,
+        index_instruction,
+    ):
+        local_faces_altered = []
+        local_faces_unaltered = []
+
+        for face in faces_paired:
+            if instructions_per_segment[index_segment][index_instruction] < 0.25:
+                local_faces_altered += self.add_detail_cubbies(face)
+            elif instructions_per_segment[index_segment][index_instruction] < 0.5:
+                local_faces_altered += self.add_detail_pyrimide(face)
+            elif instructions_per_segment[index_segment][index_instruction] < 0.6:
+                local_faces_altered += self.add_detail_recursive_extrude(face)
+            elif instructions_per_segment[index_segment][index_instruction] < 0.9:
+                local_faces_altered += self.bevel_cut(
+                    original_face=face,
+                    bevel_depths=[0.0, -0.5],
+                    border_sizes=[0.25, 0.0],
+                    depth=2,
+                )
+            else:
+                local_faces_unaltered += [face]
+        return local_faces_altered, local_faces_unaltered
+
+    def add_detail_pyrimide(self, face):
+        current_stitch_faces = []
+        faces_altered_local = []
+        current_stitch_faces += self.pyrimidize_face(original_face=face, center_point_offset=2.5)
+        faces_altered_local += current_stitch_faces
+        return faces_altered_local
+
+    def add_detail_cubbies(self, face):
+        current_stitch_faces = []
+        current_stitch_faces += self.subdivide_quad_lengthwise(face=face, subdivisions=2, widthwise=True)
+        faces_altered_local = []
+        for new_stitch_face in current_stitch_faces:
+            faces_altered_local += self.bevel_cut(
+                original_face=new_stitch_face,
+                bevel_depths=[-0.33],
+                border_sizes=[0.6],
+                depth=1,
+            )
+        return faces_altered_local
+
+    def extrude_and_stitch(self, face, number_of_faces=4, distance=1, scale=1.0):
+        current_stitch_faces = []
+        face.calculate_outer_vertices_as_vec3()
+        face_extrude = Face()
+        face_normal = face.calculate_normal()
+        face_extrude.extrude_from_other_face(other=face, direction=face_normal, distance=distance, scale=scale)
+        current_stitch_faces += [face_extrude]
+        current_stitch_faces += self.stitch_faces(face_a=face, face_b=face_extrude, number_of_faces=number_of_faces)
+        return current_stitch_faces
+
+    def serialize_faces(self, faces):
+        """
+        Convert vertices of our model from our abstract Faces format to serialized data (a Numpy array) that
+        OpenGL can draw.
+        :param faces:
+        :return:
+        """
 
         vertices = []
         for face in faces:
             vertices += face.face_to_list()
-        return np.array(
+        faces = np.array(
             vertices,
             dtype=np.float32
         ).flatten()
+        return faces
+
 
 class Polygon(PrimativeMesh):
     """
@@ -1266,7 +1632,7 @@ class FloorTileMesh(PrimativeMesh):
                  face.outer_vertices[1],
                  face.outer_vertices[2]
             ])
-            triangle_vertices[0].texture_coords = glm.vec2([
+            triangle_vertices[0].texture_coordinates = glm.vec2([
                 face.outer_vertices[0] / 2.0 + 0.5,
                 face.outer_vertices[2] / 2.0 + 0.5
             ])
@@ -1278,7 +1644,7 @@ class FloorTileMesh(PrimativeMesh):
                 face.outer_vertices[3 * i + 1 + 3 * 1],
                 face.outer_vertices[3 * i + 2 + 3 * 1]
             ])
-            triangle_vertices[1].texture_coords = glm.vec2([
+            triangle_vertices[1].texture_coordinates = glm.vec2([
                 face.outer_vertices[3 * i + 0 + 3 * 1] / 2.0 + 0.5,
                 face.outer_vertices[3 * i + 2 + 3 * 1] / 2.0 + 0.5
             ])
@@ -1289,7 +1655,7 @@ class FloorTileMesh(PrimativeMesh):
                 face.outer_vertices[3 * i + 1 + 3 * 2],
                 face.outer_vertices[3 * i + 2 + 3 * 2]
             ])
-            triangle_vertices[2].texture_coords = glm.vec2([
+            triangle_vertices[2].texture_coordinates = glm.vec2([
                 face.outer_vertices[3 * i + 0 + 3 * 2] / 2.0 + 0.5,
                 face.outer_vertices[3 * i + 2 + 3 * 2] / 2.0 + 0.5
             ])
@@ -1394,7 +1760,14 @@ class Face():
             vertices_list.append(vertex.vertex_to_list())
         return vertices_list
 
-    def extrude_from_other_face(self, other, direction = [0.0, 1.0, 0.0], distance=1.0, flip_base=True, radius=None):
+    def extrude_from_other_face(
+            self,
+            other,
+            direction=(0.0, 1.0, 0.0),
+            distance=1.0,
+            flip_base=True,
+            scale=None,
+    ):
         """
         takes in another face, copies points with positional offset.  Only effects outer vertices, so call to
         generate outer vertices is required as next step
@@ -1404,12 +1777,16 @@ class Face():
         all_vertices = []
         for vertex in other.vertices:
             updated_vertex = Vertex()
-            if radius == None:
+            if scale is None:
                 updated_vertex.positions = glm.vec3(vertex.positions) + offset
             else:
-                radius_adjusted_vertices = (glm.vec3(vertex.positions).x*radius,glm.vec3(vertex.positions).y,glm.vec3(vertex.positions).z*radius)
+                radius_adjusted_vertices = (
+                    glm.vec3(vertex.positions).x*scale,
+                    glm.vec3(vertex.positions).y,
+                    glm.vec3(vertex.positions).z*scale
+                )
                 updated_vertex.positions = glm.vec3(radius_adjusted_vertices) + offset
-            updated_vertex.texture_coords = glm.vec2(vertex.texture_coords)
+            updated_vertex.texture_coordinates = glm.vec2(vertex.texture_coordinates)
             updated_vertex.normals = glm.vec3(vertex.normals)
             if flip_base:
                 vertex.normals *= -1.0
@@ -1419,19 +1796,19 @@ class Face():
         self.vertices = all_vertices
         outer_vertices = [0.0] * len(other.outer_vertices)
         for vertex_index in range(int(len(other.outer_vertices)/3)):
-            if radius == None:
+            if scale is None:
                 outer_vertices[vertex_index * 3] = other.outer_vertices[vertex_index * 3] + offset.x
                 outer_vertices[vertex_index * 3 + 1] = other.outer_vertices[vertex_index * 3 + 1] + offset.y
                 outer_vertices[vertex_index * 3 + 2] = other.outer_vertices[vertex_index * 3 + 2] + offset.z
             else:
-                outer_vertices[vertex_index * 3] = other.outer_vertices[vertex_index * 3] * radius + offset.x
+                outer_vertices[vertex_index * 3] = other.outer_vertices[vertex_index * 3] * scale + offset.x
                 outer_vertices[vertex_index * 3 + 1] = other.outer_vertices[vertex_index * 3 + 1] + offset.y
-                outer_vertices[vertex_index * 3 + 2] = other.outer_vertices[vertex_index * 3 + 2] * radius + offset.z
+                outer_vertices[vertex_index * 3 + 2] = other.outer_vertices[vertex_index * 3 + 2] * scale + offset.z
+
         self.outer_vertices = outer_vertices.copy()
 
-        #NEW
         self.calculate_sides()
-        self.vertices = self.outer_vertices_to_vertices(number_of_sides=self.sides)
+        self.vertices = self.outer_vertices_to_vertices(number_of_sides=self.sides, reverse_texture_coords=True)
 
     def extrude_from_other_face_2(self, other, direction = [0.0, 1.0, 0.0], distance=1.0, flip_base=True, radius=1.0):
         """
@@ -1458,13 +1835,16 @@ class Face():
 
         #todo: this should work....
         for vertex, other_vertex in zip(self.vertices, other.vertices):
-            vertex.texture_coords = glm.vec2(other_vertex.texture_coords)
+            vertex.texture_coordinates = glm.vec2(other_vertex.texture_coordinates)
 
     def update_texture_coords_using_atlas_index(self, texture_atlas_index, texture_atlas_size):
         """
         uses the texture atlas index to modify the per-vertex texture coordinates of this face
 
-        """
+       :param texture_atlas_index: left->right, top->bottom
+       :param texture_atlas_size: the length of the texture atlas (always square)
+       :return:
+       """
         self.texture_atlas_index = texture_atlas_index
 
         #texture atlas index into row and column indices
@@ -1481,10 +1861,10 @@ class Face():
         upper_texture_coord_y_axis = 1.0 / texture_atlas_size * (row_index + 1.0)
         #update the current vertices' text coords
         for vertex in self.vertices:
-            vertex.texture_coords[0] = lower_texture_coord_x_axis + vertex.texture_coords[0] * subtexture_magnitude
-            vertex.texture_coords[1] = lower_texture_coord_y_axis + vertex.texture_coords[1] * subtexture_magnitude
+            vertex.texture_coordinates[0] = lower_texture_coord_x_axis + vertex.texture_coordinates[0] * subtexture_magnitude
+            vertex.texture_coordinates[1] = lower_texture_coord_y_axis + vertex.texture_coordinates[1] * subtexture_magnitude
         for vertex in self.vertices:
-            print(vertex.texture_coords)
+            print(vertex.texture_coordinates)
 
     def apply_hardset_quad_texture_coords(self):
         """
@@ -1503,20 +1883,20 @@ class Face():
             2: glm.vec2([1.0 + horizontal_offset[1], 0.0 + vertical_offset[0]]),
         }
 
-        self.vertices[0].texture_coords = glm.vec2(quad_texture_coords[0])
-        self.vertices[1].texture_coords = glm.vec2(quad_texture_coords[1])
-        self.vertices[2].texture_coords = glm.vec2(quad_texture_coords[2])
-        self.vertices[3].texture_coords = glm.vec2(quad_texture_coords[0])
-        self.vertices[4].texture_coords = glm.vec2(quad_texture_coords[2])
-        self.vertices[5].texture_coords = glm.vec2(quad_texture_coords[3])
+        self.vertices[0].texture_coordinates = glm.vec2(quad_texture_coords[0])
+        self.vertices[1].texture_coordinates = glm.vec2(quad_texture_coords[1])
+        self.vertices[2].texture_coordinates = glm.vec2(quad_texture_coords[2])
+        self.vertices[3].texture_coordinates = glm.vec2(quad_texture_coords[0])
+        self.vertices[4].texture_coordinates = glm.vec2(quad_texture_coords[2])
+        self.vertices[5].texture_coordinates = glm.vec2(quad_texture_coords[3])
 
     def apply_hardset_triangle_texture_coords(self):
         """
         another hacky solution of calculating texture coordinates
         """
-        self.vertices[0].texture_coords = glm.vec2([0.0,0.0])
-        self.vertices[1].texture_coords = glm.vec2([1.0,0.0])
-        self.vertices[2].texture_coords = glm.vec2([0.5,1.0])
+        self.vertices[0].texture_coordinates = glm.vec2([0.0, 0.0])
+        self.vertices[1].texture_coordinates = glm.vec2([1.0, 0.0])
+        self.vertices[2].texture_coordinates = glm.vec2([0.5, 1.0])
 
     def offset_outer_vertices(self, offset=glm.vec3([0.0, 0.0, 0.0])):
         for i in range(len(self.outer_vertices)):
@@ -1572,7 +1952,7 @@ class Face():
                 self.outer_vertices[1],
                 self.outer_vertices[2]
             ])
-            triangle_vertices[0].texture_coords = glm.vec2([
+            triangle_vertices[0].texture_coordinates = glm.vec2([
                 texture_coordinates[0].x,
                 texture_coordinates[0].y
             ])
@@ -1583,7 +1963,7 @@ class Face():
                 self.outer_vertices[3 * i + 1 + 3 * 1],
                 self.outer_vertices[3 * i + 2 + 3 * 1]
             ])
-            triangle_vertices[1].texture_coords = glm.vec2([
+            triangle_vertices[1].texture_coordinates = glm.vec2([
                 texture_coordinates[texture_index].x,
                 texture_coordinates[texture_index].y
             ])
@@ -1594,7 +1974,7 @@ class Face():
                 self.outer_vertices[3 * i + 1 + 3 * 2],
                 self.outer_vertices[3 * i + 2 + 3 * 2]
             ])
-            triangle_vertices[2].texture_coords = glm.vec2([
+            triangle_vertices[2].texture_coordinates = glm.vec2([
                 texture_coordinates[texture_index + 1].x,
                 texture_coordinates[texture_index + 1].y
             ])
@@ -1621,7 +2001,7 @@ class Vertex():
     def __init__(self):
         self.positions = glm.vec3()
         self.normals = glm.vec3()
-        self.texture_coords = glm.vec2()
+        self.texture_coordinates = glm.vec2()
 
     def vertex_to_list(self):
         """
@@ -1630,7 +2010,7 @@ class Vertex():
         vertex_as_list = []
         for position in self.positions:
             vertex_as_list.append(position)
-        for texture_coord in self.texture_coords:
+        for texture_coord in self.texture_coordinates:
             vertex_as_list.append(texture_coord)
         for normal in self.normals:
             vertex_as_list.append(normal)
@@ -2328,8 +2708,8 @@ class SegmentedPrismBevelCutTest(SegmentedPrism):
             face_to_cut = faces[index]
             bevel_cut_faces += self.bevel_cut(
                 face_to_cut,
-                bevel_depths = self.bevel_depths,
-                border_sizes = self.border_sizes,
+                bevel_depths=self.bevel_depths,
+                border_sizes=self.border_sizes,
                 depth=self.depth,
             )
         for face in bevel_cut_faces:
@@ -2566,7 +2946,7 @@ def herons_formula(sides):
                                                                             sides[2]*sides[2], 2))
 
 def rotate_list(current_list, steps):
-    '''
+    """
     rotates a list by n steps.  negative steps puts last element first.
     EXAMPLE
     fruits = ['a', 'b', 'c']
@@ -2575,7 +2955,7 @@ def rotate_list(current_list, steps):
     :param current_list: list to operate on.  Original not changed
     :param steps: number of elements to shift over
     :return: a new list
-    '''
+    """
     return current_list[steps:] + current_list[:steps]
 
 def get_next_index(size, index):
