@@ -42,6 +42,7 @@ from PIL import Image
 import PointLightCube as plc
 import ProceduralMesh as primatives
 import FPSCounter
+import SpaceShip
 
 images = []
 
@@ -472,8 +473,8 @@ texture_dictionary = {
 
 
 spaceship_parameters = {
-    'number_of_sides': 4,
-    'number_of_segments': 6,
+    'number_of_sides': 8,
+    'number_of_segments': 4,
     # 'transform_x': 0.25 + random()*1.25,
     'transform_x': 0.66,
     'transform_z': 1.0,
@@ -488,9 +489,9 @@ spaceship = primatives.Spaceship(
     specular=texture_dictionary['spaceship_specular'],
     emission=texture_dictionary['spaceship_emission'],
     dimensions=[5.0, 5.0],
-    position=[25.0, 10.0, 15.0],
-    rotation_magnitude=-m.pi*0.5,
-    rotation_axis=glm.vec3([0.0, 0.0, 1.0]),
+    position=[0.0, 0.0, 0.0],
+    rotation_magnitude=[-m.pi*0.5, m.pi*0.25],
+    rotation_axis=[0.0, 0.0, 1.0],
     number_of_sides=spaceship_parameters['number_of_sides'],
     number_of_segments=spaceship_parameters['number_of_segments'],
     transform_x=spaceship_parameters['transform_x'],
@@ -498,6 +499,8 @@ spaceship = primatives.Spaceship(
     length_of_segment=5.0,
     radius=3.0,
 )
+ships = [SpaceShip.Spaceship(model=spaceship)]
+ships[0].set_velocity(velocity=[-3.0, 0.0, 0.0])
 
 bezier_cube = primatives.NPrismBezierCut(
     shader=shader,
@@ -559,8 +562,22 @@ while not glfw.window_should_close(window):
     # testing_model.draw(view=view)
     # testing_model_polygon.draw(view=view)
     # testing_primative_mesh_emission.draw(view=view)
-    # spaceship.rotate_over_time(speed=0.3)
-    spaceship.draw(view=view)
+    spaceship.rotate_over_time(speed=0.3)
+    # spaceship.draw(view=view)
+
+    "process ships"
+    for ship in ships:
+        ship.draw(view=view)
+        ship.move(delta_time=0.1)
+        #add delta_time*velocity to position
+            #ie, move ship
+        #check if ship close enough to target to stop and trade
+        #do trades
+        #if ship reaches HQ
+            #update info
+                #planet prices
+                #company money
+        #
 
     """draw new ship"""
     if make_new_ship:
@@ -573,8 +590,8 @@ while not glfw.window_should_close(window):
             specular=texture_dictionary['spaceship_specular'],
             emission=texture_dictionary['spaceship_emission'],
             dimensions=[5.0, 5.0],
-            position=[25.0, 10.0, 15.0],
-            rotation_magnitude=-m.pi * 0.5,
+            position=ships[0].model.position,
+            rotation_magnitude=ships[0].model.rotation_magnitude,
             rotation_axis=glm.vec3([0.0, 0.0, 1.0]),
             number_of_sides=spaceship_parameters['number_of_sides'],
             number_of_segments=spaceship_parameters['number_of_segments'],
@@ -583,6 +600,7 @@ while not glfw.window_should_close(window):
             length_of_segment=5.0,
             radius=3.0,
         )
+        ships[0].model = spaceship
 
 
     # draw the point light cube

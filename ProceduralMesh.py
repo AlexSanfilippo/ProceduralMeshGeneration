@@ -240,14 +240,14 @@ class PrimativeMesh():
                  dimensions=[5.0, 5.0],
                  position=[0.0, 0.0, 0.0],
                  rotation_magnitude=0,
-                 rotation_axis=glm.vec3([0.0, 0.0, 1.0]),
-                 scale=glm.vec3([1.0, 1.0, 1.0]),
+                 rotation_axis=[0.0, 0.0, 1.0],
+                 scale=[1.0, 1.0, 1.0],
                  ):
         self.shader = shader
         self.diffuse = diffuse
         self.specular = specular
         self.shininess = shininess
-        self.position = position
+        self.position = glm.vec3(position)
         self.rotation_magnitude = rotation_magnitude
         self.rotation_axis = glm.vec3(rotation_axis)
         self.scale = glm.vec3(scale)
@@ -298,7 +298,7 @@ class PrimativeMesh():
 
         # rotate, translate, and scale
         model = glm.mat4(1.0)
-        model = glm.translate(model, glm.vec3(self.position))
+        model = glm.translate(model, self.position)
         model = glm.rotate(model, self.rotation_magnitude, self.rotation_axis)
         model = glm.scale(model, self.scale)
         glUniformMatrix4fv(self.model_loc, 1, GL_FALSE, glm.value_ptr(model))
@@ -307,6 +307,12 @@ class PrimativeMesh():
         # glDrawArrays(GL_TRIANGLES, 0, len(self.indices))
         glDrawArrays(GL_TRIANGLES, 0, int(len(self.vertices)/3))
         # glDrawElements(GL_TRIANGLES, len(self.indices)/3, GL_UNSIGNED_INT, self.indices)
+
+    # def rotate_advanced(self, model):
+    #     model = glm.rotate(model, self.rotation_magnitude_z, glm.vec3([1.0, 1.0, 1.0]))
+    #     # model = glm.rotate(model, rotation_magnitude_y, glm.vec3([1.0, 0.0, 0.0]))
+    #     return model
+
 
     def set_diffuse(self, diffuse):
         self.diffuse = diffuse
@@ -336,7 +342,7 @@ class PrimativeMesh():
         :param speed: how fast to spin
         :return: None
         """
-        self.rotation_magnitude = speed * glfw.get_time()
+        self.rotation_magnitude.y = speed * glfw.get_time()
 
     def generate_texture_coordinates_polygonal(self, sides, reverse = True):
         """
@@ -774,7 +780,8 @@ class PrimativeMesh():
                     face_b.outer_vertices[side * 3 + 3], face_b.outer_vertices[side * 3 + 4], face_b.outer_vertices[side * 3 + 5],
                 ]
             face.vertices = self.outer_vertices_to_vertices(face, 4)
-            face.apply_hardset_quad_texture_coords()
+            #todo: this appears to be failing.
+            # face.apply_hardset_quad_texture_coords()
             faces.append(face)
 
         return faces
@@ -906,7 +913,7 @@ class PrimativeMeshEmission(PrimativeMesh):
         # mesh properties
         dimensions=[5.0, 5.0],
         position=[0.0, 0.0, 0.0],
-        rotation_magnitude=0,
+        rotation_magnitude=[0.0, 0.0],
         rotation_axis=glm.vec3([0.0, 0.0, 1.0]),
         scale=glm.vec3([1.0, 1.0, 1.0]),
     ):
@@ -919,7 +926,7 @@ class PrimativeMeshEmission(PrimativeMesh):
             # mesh properties
             dimensions=dimensions,
             position=position,
-            rotation_magnitude=rotation_magnitude,
+            rotation_magnitude=glm.vec2(rotation_magnitude),
             rotation_axis=rotation_axis,
             scale=scale,
         )
@@ -938,7 +945,9 @@ class PrimativeMeshEmission(PrimativeMesh):
         # rotate, translate, and scale
         model = glm.mat4(1.0)
         model = glm.translate(model, glm.vec3(self.position))
-        model = glm.rotate(model, self.rotation_magnitude, self.rotation_axis)
+        model_z = glm.rotate(model, self.rotation_magnitude.x, self.rotation_axis)
+        model_x = glm.rotate(model, self.rotation_magnitude.y, glm.vec3([0.0, 1.0, 0.0]))
+        model = model_x * model_z
         model = glm.scale(model, self.scale)
         glUniformMatrix4fv(self.model_loc, 1, GL_FALSE, glm.value_ptr(model))
         glDrawArrays(GL_TRIANGLES, 0, int(len(self.vertices) / 3))
@@ -1050,10 +1059,8 @@ class Spaceship(PrimativeMeshEmission):
             texture_atlas_index=3,
             texture_atlas_size=2,
         )
-        #todo: re-enable add_detail and stop appending segment faces
-        # for face in segment_faces:
-        #     face.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=2)
-        # faces += segment_faces
+        faces += self.generate_thrusters(face=faces[-1])
+
         faces += self.add_detail_to_faces(faces_to_alter=segment_faces)
 
         faces += self.generate_nose(face=faces[0])
@@ -1061,6 +1068,21 @@ class Spaceship(PrimativeMeshEmission):
 
         return self.serialize_faces(faces)
 
+    def generate_thrusters(self, face):
+        thruster_faces = self.bevel_cut(
+            original_face=face,
+            bevel_depths=[self.length_of_segment*0.25, 0.0, self.length_of_segment*-0.5],
+            border_sizes=[-0.25, 0.25, 0.5],
+            depth=3
+        )
+
+        #texturing
+        ion_face = thruster_faces.pop(-(self.number_of_sides + 1))
+        ion_face.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=3)
+        for face in thruster_faces:
+            face.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=1)
+
+        return thruster_faces + [ion_face]
     def generate_nose(self, face):
         faces_nose = []
         face_nose_tip = Face()
@@ -1094,6 +1116,7 @@ class Spaceship(PrimativeMeshEmission):
         #return new faces
         faces_nose += [face_nose_tip] + faces_from_stitch
         return faces_nose
+
     def determine_radius(
             self,
             i,
@@ -1282,25 +1305,47 @@ class Spaceship(PrimativeMeshEmission):
         #     face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
         # return faces_altered
 
-    def add_detail_recursive_extrude(self, face):
+    def add_detail_recursive_extrude(self, face, bevel_depths, border_sizes):
         local_faces_altered = []
         current_stitch_faces = self.extrude_and_stitch(face, scale=1.0, distance=floor(self.length_of_segment * 0.25))
         recursion_count = 1
         for i in range(recursion_count):
             final_faces = []
             for face in current_stitch_faces:
-                final_faces += self.extrude_and_stitch(face, scale=1.0, distance=floor(self.length_of_segment * 0.25))
+                final_faces += self.extrude_and_stitch(face, scale=1.0, distance=floor(self.length_of_segment * 0.05))
             current_stitch_faces = final_faces
         faces_post_bevel = []
         for face in final_faces:
             faces_post_bevel += self.bevel_cut(
                 original_face=face,
-                bevel_depths=[0.33],
-                border_sizes=[0.6],
-                depth=1,
+                bevel_depths=bevel_depths,
+                border_sizes=border_sizes,
+                depth=len(bevel_depths),
             )
         local_faces_altered += faces_post_bevel
         return local_faces_altered
+
+    def add_detail_intake(self, face):
+        local_faces_altered = self.bevel_cut(
+            original_face=face,
+            depth=1,
+            bevel_depths=[self.length_of_segment*0.2],
+            border_sizes=[0.0]
+        )
+        intake_index = 2
+        intake_faces = [local_faces_altered[intake_index]]
+        intake_faces_altered = []
+        for face in intake_faces:
+            intake_faces_altered += self.bevel_cut(
+                original_face=face,
+                depth=2,
+                bevel_depths=[0.0, -self.length_of_segment * 0.3],
+                border_sizes=[0.15, 0.5]
+            )
+        del local_faces_altered[intake_index]
+        # del local_faces_altered[4]
+
+        return local_faces_altered + intake_faces_altered
 
     def detail_faces_by_instruction(
         self,
@@ -1319,7 +1364,16 @@ class Spaceship(PrimativeMeshEmission):
             elif instructions_per_segment[index_segment][index_instruction] < 0.5:
                 local_faces_altered += self.add_detail_pyrimide(face)
             elif instructions_per_segment[index_segment][index_instruction] < 0.6:
-                local_faces_altered += self.add_detail_recursive_extrude(face)
+                local_faces_altered += self.add_detail_recursive_extrude(
+                    face,
+                    bevel_depths=[0.33],
+                    border_sizes=[0.6]
+                )
+            elif instructions_per_segment[index_segment][index_instruction] < 0.89:
+                local_faces_altered += self.add_detail_intake(
+                    face,
+                )
+
             elif instructions_per_segment[index_segment][index_instruction] < 0.9:
                 local_faces_altered += self.bevel_cut(
                     original_face=face,
@@ -2462,7 +2516,7 @@ class Prism(PrimativeMesh):
         self.diffuse = diffuse
         self.specular = specular
         self.shininess = shininess
-        self.position = position
+        self.position = glm.vec3(position)
         self.rotation_magnitude = rotation_magnitude
         self.rotation_axis = glm.vec3(rotation_axis)
         self.scale = glm.vec3(scale)
@@ -2600,7 +2654,7 @@ class SegmentedPrism(Prism):
         self.diffuse = diffuse
         self.specular = specular
         self.shininess = shininess
-        self.position = position
+        self.position = glm.vec3(position)
         self.rotation_magnitude = rotation_magnitude
         self.rotation_axis = glm.vec3(rotation_axis)
         self.scale = glm.vec3(scale)
