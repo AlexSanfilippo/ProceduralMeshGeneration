@@ -237,18 +237,18 @@ class PrimativeMesh():
                  specular,
                  shininess=32.0,
                  # mesh properties
-                 dimensions=[5.0, 5.0],
-                 position=[0.0, 0.0, 0.0],
-                 rotation_magnitude=0,
-                 rotation_axis=[0.0, 0.0, 1.0],
-                 scale=[1.0, 1.0, 1.0],
+                 dimensions=(5.0, 5.0),
+                 position=(0.0, 0.0, 0.0),
+                 rotation_magnitude=(0, 0, 0),
+                 rotation_axis=(0.0, 0.0, 1.0),
+                 scale=(1.0, 1.0, 1.0),
                  ):
         self.shader = shader
         self.diffuse = diffuse
         self.specular = specular
         self.shininess = shininess
         self.position = glm.vec3(position)
-        self.rotation_magnitude = rotation_magnitude
+        self.rotation_magnitude = glm.vec3(rotation_magnitude)
         self.rotation_axis = glm.vec3(rotation_axis)
         self.scale = glm.vec3(scale)
         self.dimensions = dimensions
@@ -299,20 +299,12 @@ class PrimativeMesh():
         # rotate, translate, and scale
         model = glm.mat4(1.0)
         model = glm.translate(model, self.position)
-        model = glm.rotate(model, self.rotation_magnitude, self.rotation_axis)
+        #todo: this rotation smells fishy
+        model = glm.rotate(model, self.rotation_magnitude.x, self.rotation_axis)
         model = glm.scale(model, self.scale)
         glUniformMatrix4fv(self.model_loc, 1, GL_FALSE, glm.value_ptr(model))
 
-        # glUniformMatrix4fv(self.model_loc, 1, GL_FALSE, pyrr.matrix44.create_from_translation(pyrr.Vector3(self.position)))
-        # glDrawArrays(GL_TRIANGLES, 0, len(self.indices))
         glDrawArrays(GL_TRIANGLES, 0, int(len(self.vertices)/3))
-        # glDrawElements(GL_TRIANGLES, len(self.indices)/3, GL_UNSIGNED_INT, self.indices)
-
-    # def rotate_advanced(self, model):
-    #     model = glm.rotate(model, self.rotation_magnitude_z, glm.vec3([1.0, 1.0, 1.0]))
-    #     # model = glm.rotate(model, rotation_magnitude_y, glm.vec3([1.0, 0.0, 0.0]))
-    #     return model
-
 
     def set_diffuse(self, diffuse):
         self.diffuse = diffuse
@@ -336,35 +328,37 @@ class PrimativeMesh():
     def set_rotation_magnitude(self, magnitude):
         self.rotation_magnitude = magnitude
 
-    def rotate_over_time(self, speed=0.5):
+    def rotate_over_time(self, speed=0.5, axis=1):
         """
         my_model.rotate_over_time(speed=0.1)
         :param speed: how fast to spin
+        :param axis: x,y,z == 0,1,2
         :return: None
         """
-        self.rotation_magnitude.y = speed * glfw.get_time()
+        self.rotation_magnitude[axis] = speed * glfw.get_time()
 
-    def generate_texture_coordinates_polygonal(self, sides, reverse = True):
-        """
-        A new means of generating texture coordinates for any (regular) polygon.
-        Even works for polygons not on XZ plane at origin
-        :return: a list of glm.vec2() coordinates, one for each point of shape
-        """
-        angle_delta = -2.0 * pi / sides
-        angle_initial = (pi / sides) - (pi / 2.0)
-        radius = 0.5
-        if sides == 4:
-            radius = 1.0 / math.sqrt(2.0)
-            angle_initial = (pi / sides) + angle_delta
-        texture_coordinates = []
-        for index_point in range(sides):
-            coordinate = glm.vec2([0.0, 0.0])
-            coordinate.x = (cos(angle_initial - angle_delta * index_point) * radius) + 0.5
-            coordinate.y = (sin(angle_initial - angle_delta * index_point) * radius) + 0.5
-            texture_coordinates.append(coordinate)
-        if reverse:
-            texture_coordinates.reverse()
-        return texture_coordinates
+    #todo: This function already exists in Face and is used nowhere.
+    # def generate_texture_coordinates_polygonal(self, sides, reverse=True):
+    #     """
+    #     A new means of generating texture coordinates for any (regular) polygon.
+    #     Even works for polygons not on XZ plane at origin
+    #     :return: a list of glm.vec2() coordinates, one for each point of shape
+    #     """
+    #     angle_delta = -2.0 * pi / sides
+    #     angle_initial = (pi / sides) - (pi / 2.0)
+    #     radius = 0.5
+    #     if sides == 4:
+    #         radius = 1.0 / math.sqrt(2.0)
+    #         angle_initial = (pi / sides) + angle_delta
+    #     texture_coordinates = []
+    #     for index_point in range(sides):
+    #         coordinate = glm.vec2([0.0, 0.0])
+    #         coordinate.x = (cos(angle_initial - angle_delta * index_point) * radius) + 0.5
+    #         coordinate.y = (sin(angle_initial - angle_delta * index_point) * radius) + 0.5
+    #         texture_coordinates.append(coordinate)
+    #     if reverse:
+    #         texture_coordinates.reverse()
+    #     return texture_coordinates
 
     def extrude_from_other_face(self, other, direction = [0.0, 1.0, 0.0], distance=1.0, flip_base=True, radius=1.0):
         """
@@ -389,12 +383,14 @@ class PrimativeMesh():
     def outer_vertices_to_vertices(self, face, number_of_sides, reverse_texture_coords=False):
         """
         Generates the real vertices (with normals, texture coords) of a face
+        :param reverse_texture_coords: reverse order of list of position vertices
         :param face: the face we want to generate vertices for.  must have its outer vertices already
         :param number_of_sides: eg, 4 for square, 5 for pentagon
         :return: the vertices to be drawn by opengl
         """
 
-        texture_coordinates = self.generate_texture_coordinates_polygonal(sides=number_of_sides)
+        # texture_coordinates = face.generate_texture_coordinates_polygon()
+        texture_coordinates = face.generate_texture_coordinates_polygon()
         if reverse_texture_coords:
             texture_coordinates.reverse()
         vertices = []
@@ -444,18 +440,47 @@ class PrimativeMesh():
             texture_index += 1
         return vertices
 
-    def _generate_polygonal_face(self, initial_angle, number_of_sides, radius=1.0, transform_x=1.0, transform_z=1.0):
+    def _generate_polygonal_face(
+            self,
+            number_of_sides,
+            radius=1.0,
+            transform_x=1.0,
+            transform_z=1.0,
+            offset=(0.0, -1.0, 0.0)
+    ):
         face = Face()
         face.outer_vertices = self.generate_outer_vertices(
             number_of_sides=number_of_sides,
-            initial_angle=initial_angle,
+            initial_angle=pi / number_of_sides,
             radius=radius,
             transform_x=transform_x,
             transform_z=transform_z,
         )
-        face.offset_outer_vertices(offset=glm.vec3([0.0, -1.0, 0.0]))
-        face.vertices = self.outer_vertices_to_vertices(number_of_sides=number_of_sides, face=face)
+        face.offset_outer_vertices(offset=glm.vec3(offset))
+        face.vertices = face.outer_vertices_to_vertices(reverse_texture_coordinates=True)
         return face
+
+    def _generate_irregular_polygonal_face(
+            self,
+            number_of_sides,
+            radii=1.0,
+            transform_x=1.0,
+            transform_z=1.0,
+            offset=(0.0, -1.0, 0.0)
+    ):
+        face = Face()
+        face.outer_vertices = self.generate_outer_vertices(
+            number_of_sides=number_of_sides,
+            initial_angle=pi / number_of_sides,
+            radius=radii,
+            transform_x=transform_x,
+            transform_z=transform_z,
+        )
+        face.offset_outer_vertices(offset=glm.vec3(offset))
+        face.vertices = face.outer_vertices_to_vertices(reverse_texture_coordinates=True)
+        return face
+
+
 
     def generate_outer_vertices(
             self,
@@ -473,13 +498,19 @@ class PrimativeMesh():
         angle_of_rotation = 2 * pi / number_of_sides
         if initial_angle == None:
             initial_angle = pi / number_of_sides
-        for i in range(1, int(number_of_sides) + 1):
-            x_coord = cos(initial_angle + angle_of_rotation * -i) * radius * transform_x
-            z_coord = sin(initial_angle + angle_of_rotation * -i) * radius * transform_z
-            outer_vertices += [x_coord, 0.0, z_coord]
+        if type(radius) is list:
+            for i in range(1, int(number_of_sides) + 1):
+                x_coord = cos(initial_angle + angle_of_rotation * -i) * radius[i-1] * transform_x
+                z_coord = sin(initial_angle + angle_of_rotation * -i) * radius[i-1] * transform_z
+                outer_vertices += [x_coord, 0.0, z_coord]
+        else:
+            for i in range(1, int(number_of_sides) + 1):
+                x_coord = cos(initial_angle + angle_of_rotation * -i) * radius * transform_x
+                z_coord = sin(initial_angle + angle_of_rotation * -i) * radius * transform_z
+                outer_vertices += [x_coord, 0.0, z_coord]
         return outer_vertices
 
-    def bevel_cut(self, original_face, bevel_depths = [-0.2, -0.4], border_sizes = [0.6, 0.0], depth=2, direction=False):
+    def bevel_cut(self, original_face, bevel_depths=[-0.2, -0.4], border_sizes=[0.6, 0.0], depth=2, direction=False):
         """
         Cuts an n-sided hole, offsets a new face, and stitches to create a connected-depression
         :bevel_depths: how much to push the excude in/out (negative for in)
@@ -487,7 +518,7 @@ class PrimativeMesh():
         :return: list of new faces. new normal-facing face (bottom face) is at index [:-(nsides + 1)]
 
         TODO:
-            Refactoring for neatness/clarity
+            -Refactoring for neatness/clarity
         """
 
         if depth == 0:
@@ -495,7 +526,6 @@ class PrimativeMesh():
 
         original_face.calculate_radius()
         radius = original_face.radius
-        #original outer vertices to list of vec3
         updated_faces = []
 
         test_cut_face = Face()
@@ -504,7 +534,7 @@ class PrimativeMesh():
             #1. cut a similar polygon from the starting face
             cut_outer_vertices = []
             for point in original_outer_vertices:
-                mean_outer_point = mean_point(original_outer_vertices)
+                mean_outer_point = calculate_mean_point(original_outer_vertices)
                 border_direction = glm.normalize(mean_outer_point - point)
                 border_diagonal_length = radius*border_sizes[i]
                 cut_point = point + border_direction*border_diagonal_length
@@ -523,7 +553,9 @@ class PrimativeMesh():
             else:
                 face_normal = direction
             test_cut_face.offset_outer_vertices(offset=face_normal*bevel_depths[i])
-            test_cut_face.vertices = self.outer_vertices_to_vertices(test_cut_face, number_of_sides=test_cut_face.sides)
+            test_cut_face.vertices = test_cut_face.outer_vertices_to_vertices(
+                                reverse_texture_coordinates=True,
+            )
             if i == depth - 1:
                 updated_faces.append(test_cut_face)
             #3. stitch old faces to new face
@@ -535,6 +567,7 @@ class PrimativeMesh():
             original_face.calculate_radius()
             radius = original_face.radius
             original_outer_vertices = list_to_vec3_list(test_cut_face.outer_vertices.copy())
+
         return updated_faces
 
     def bevel_polygon_corner(self, face, subject_vertex_index=0, bevel_ratio = 0.5):
@@ -575,7 +608,7 @@ class PrimativeMesh():
         original_normal = original_face.normal
         # calculate center of original face
         original_outer_vertices_as_vec3s = original_face.outer_vertices_vec3
-        center_point = mean_point(original_outer_vertices_as_vec3s)
+        center_point = calculate_mean_point(original_outer_vertices_as_vec3s)
         # adjust center by the normal and center_point_offset
         center_point += original_normal * center_point_offset
         # construct the N new triangles outer vertices
@@ -601,7 +634,7 @@ class PrimativeMesh():
             triangle_faces[index].outer_vertices_vec3 = new_triangles_outer_vertices[index]
             # generate vertices of N new faces.
             # triangle_faces[index].vertices = triangle_faces[index].outer_vertices
-            triangle_faces[index].vertices = triangle_faces[index].outer_vertices_to_vertices(number_of_sides=3)
+            triangle_faces[index].vertices = triangle_faces[index].outer_vertices_to_vertices()
             triangle_faces[index].apply_hardset_triangle_texture_coords()
         # return the N new quad faces
         return triangle_faces
@@ -624,7 +657,7 @@ class PrimativeMesh():
         original_normal = original_face.normal
         #calculate center of original face
         original_outer_vertices_as_vec3s = original_face.outer_vertices_vec3
-        center_point = mean_point(original_outer_vertices_as_vec3s)
+        center_point = calculate_mean_point(original_outer_vertices_as_vec3s)
         #adjust center by the normal and center_point_offset
         center_point += original_normal * center_point_offset
         #find the N midpoints (N = number of sides of face polygon)
@@ -635,7 +668,7 @@ class PrimativeMesh():
             overflowing_index = 1
             if index == num_sides - 1:
                 overflowing_index = -index
-            midpoints[index] = mean_point(
+            midpoints[index] = calculate_mean_point(
                 [original_outer_vertices_as_vec3s[index],
                  original_outer_vertices_as_vec3s[index + overflowing_index]
                  ]
@@ -731,7 +764,7 @@ class PrimativeMesh():
         #cut saved into a new face
         face_cut = Face()
         face_cut.outer_vertices = vec3_list_to_list([point - original_face_normal*offset for point in bezier_points])
-        midpoint_base = mean_point([bezier_points[0], bezier_points[intervals+1]])
+        midpoint_base = calculate_mean_point([bezier_points[0], bezier_points[intervals + 1]])
         vertices_cut = []
         for index, bezier_point in enumerate(bezier_points[:intervals+1]):
             vertices_cut.append(midpoint_base - original_face_normal*offset)
@@ -758,7 +791,8 @@ class PrimativeMesh():
 
     def stitch_faces(self, face_a, face_b, number_of_faces):
         """
-        takes two (geometrically same) Faces and forms a prism-like mesh
+        takes two (geometrically same) Faces and forms a prism-like mesh by connecting them
+        with quadrilaterals
         :returns: a list of faces
         """
         faces = []
@@ -779,9 +813,9 @@ class PrimativeMesh():
                     face_a.outer_vertices[side * 3 + 3], face_a.outer_vertices[side * 3 + 4], face_a.outer_vertices[side * 3 + 5],
                     face_b.outer_vertices[side * 3 + 3], face_b.outer_vertices[side * 3 + 4], face_b.outer_vertices[side * 3 + 5],
                 ]
-            face.vertices = self.outer_vertices_to_vertices(face, 4)
-            #todo: this appears to be failing.
-            # face.apply_hardset_quad_texture_coords()
+            # face.vertices = self.outer_vertices_to_vertices(face, 4)
+            face.vertices = face.outer_vertices_to_vertices(reverse_texture_coordinates=True)
+
             faces.append(face)
 
         return faces
@@ -827,7 +861,7 @@ class PrimativeMesh():
             new_face = Face()
             new_face.outer_vertices_vec3=current_outer_vertices
             new_face.outer_vertices=vec3_list_to_list(current_outer_vertices)
-            new_face.vertices = new_face.outer_vertices_to_vertices(number_of_sides=4)
+            new_face.vertices = new_face.outer_vertices_to_vertices()
             new_face.apply_hardset_quad_texture_coords()
             roof_faces.append(new_face)
 
@@ -840,7 +874,7 @@ class PrimativeMesh():
             new_face = Face()
             new_face.outer_vertices_vec3=current_outer_vertices
             new_face.outer_vertices=vec3_list_to_list(current_outer_vertices)
-            new_face.vertices = new_face.outer_vertices_to_vertices(number_of_sides=3)
+            new_face.vertices = new_face.outer_vertices_to_vertices()
             #todo:fix these triangle faces outer vertices
             new_face.apply_hardset_triangle_texture_coords()
             roof_faces.append(new_face)
@@ -889,7 +923,7 @@ class PrimativeMesh():
             ]
             subdivision_face.outer_vertices_vec3 = subdivision_outer_vertices
             subdivision_face.outer_vertices = vec3_list_to_list(subdivision_outer_vertices)
-            subdivision_face.vertices = subdivision_face.outer_vertices_to_vertices(number_of_sides=4)
+            subdivision_face.vertices = subdivision_face.outer_vertices_to_vertices()
             subdivision_face.normal = face.normal
             subdivision_faces.append(subdivision_face)
             subdivision_index += 1
@@ -913,9 +947,9 @@ class PrimativeMeshEmission(PrimativeMesh):
         # mesh properties
         dimensions=[5.0, 5.0],
         position=[0.0, 0.0, 0.0],
-        rotation_magnitude=[0.0, 0.0],
-        rotation_axis=glm.vec3([0.0, 0.0, 1.0]),
-        scale=glm.vec3([1.0, 1.0, 1.0]),
+        rotation_magnitude=(0.0, 0.0, 0.0),
+        rotation_axis=(0.0, 0.0, 1.0),
+        scale=(1.0, 1.0, 1.0),
     ):
         super().__init__(
             shader=shader,
@@ -926,9 +960,9 @@ class PrimativeMeshEmission(PrimativeMesh):
             # mesh properties
             dimensions=dimensions,
             position=position,
-            rotation_magnitude=glm.vec2(rotation_magnitude),
-            rotation_axis=rotation_axis,
-            scale=scale,
+            rotation_magnitude=glm.vec3(rotation_magnitude),
+            rotation_axis=glm.vec3(rotation_axis),
+            scale=glm.vec3(scale),
         )
         self.emission = emission
     def draw(self, view):
@@ -945,12 +979,20 @@ class PrimativeMeshEmission(PrimativeMesh):
         # rotate, translate, and scale
         model = glm.mat4(1.0)
         model = glm.translate(model, glm.vec3(self.position))
-        model_z = glm.rotate(model, self.rotation_magnitude.x, self.rotation_axis)
-        model_x = glm.rotate(model, self.rotation_magnitude.y, glm.vec3([0.0, 1.0, 0.0]))
-        model = model_x * model_z
+        model = glm.rotate(model, self.rotation_magnitude.x, glm.vec3([1.0, 0.0, 0.0]))
+        model = glm.rotate(model, self.rotation_magnitude.y, glm.vec3([0.0, 1.0, 0.0]))
+        model = glm.rotate(model, self.rotation_magnitude.z, glm.vec3([0.0, 0.0, 1.0]))
+
         model = glm.scale(model, self.scale)
         glUniformMatrix4fv(self.model_loc, 1, GL_FALSE, glm.value_ptr(model))
         glDrawArrays(GL_TRIANGLES, 0, int(len(self.vertices) / 3))
+
+    def set_diffuse(self, diffuse):
+        self.diffuse = diffuse
+    def set_specular(self, specular):
+        self.specular = specular
+    def set_emission(self, emission):
+        self.emission = emission
 
 class Spaceship(PrimativeMeshEmission):
     cardinal_directions = {
@@ -1004,13 +1046,12 @@ class Spaceship(PrimativeMeshEmission):
             scale=scale,
         )
     def generate_vertices(self):
-        '''
+        """
         Where the mesh is generated, vertex by vertex.
         :return:
-        '''
+        """
         faces = [
             self._generate_polygonal_face(
-                initial_angle=pi / self.number_of_sides,
                 number_of_sides=self.number_of_sides,
                 radius=self.radius,
                 transform_x=self.transform_x,
@@ -1060,9 +1101,7 @@ class Spaceship(PrimativeMeshEmission):
             texture_atlas_size=2,
         )
         faces += self.generate_thrusters(face=faces[-1])
-
         faces += self.add_detail_to_faces(faces_to_alter=segment_faces)
-
         faces += self.generate_nose(face=faces[0])
         del faces[0]
 
@@ -1077,12 +1116,12 @@ class Spaceship(PrimativeMeshEmission):
         )
 
         #texturing
-        ion_face = thruster_faces.pop(-(self.number_of_sides + 1))
-        ion_face.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=3)
+        thruster_backend = thruster_faces.pop(-(self.number_of_sides + 1))
+        thruster_backend.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=3)
         for face in thruster_faces:
             face.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=1)
 
-        return thruster_faces + [ion_face]
+        return thruster_faces + [thruster_backend]
     def generate_nose(self, face):
         faces_nose = []
         face_nose_tip = Face()
@@ -1103,12 +1142,11 @@ class Spaceship(PrimativeMeshEmission):
         face_nose_tip.outer_vertices_vec3.reverse()
         face_nose_tip.outer_vertices = vec3_list_to_list(face_nose_tip.outer_vertices_vec3)
         face_nose_tip.vertices = face_nose_tip.outer_vertices_to_vertices(
-            number_of_sides=self.number_of_sides,
-            reverse_texture_coords=True,
-
+            reverse_texture_coordinates=True,
         )
 
         #texturing
+        #todo:reenable
         face_nose_tip.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=1)
         for face in faces_from_stitch:
             face.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=2)
@@ -1179,6 +1217,8 @@ class Spaceship(PrimativeMeshEmission):
     #     return faces_altered
 
     def add_detail_to_faces(self, faces_to_alter):
+        #todo:remove this hack
+        # return faces_to_alter
 
         #todo: this assumes 4 sides.  Need N-sided system
             #3, 6, 9 should have 3-way symmetry (60-degree sameness)
@@ -1280,10 +1320,10 @@ class Spaceship(PrimativeMeshEmission):
 
 
         #todo: texturing should happen within detail-applying-functions.
-        for face in faces_altered:
-            face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
+        # for face in faces_altered:
+        #     face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
         for face in faces_unaltered:
-            face.update_texture_coords_using_atlas_index(texture_atlas_index=1, texture_atlas_size=2)
+            face.update_texture_coords_using_atlas_index(texture_atlas_index=0, texture_atlas_size=2)
         return faces_altered + faces_unaltered
 
 
@@ -1306,24 +1346,21 @@ class Spaceship(PrimativeMeshEmission):
         # return faces_altered
 
     def add_detail_recursive_extrude(self, face, bevel_depths, border_sizes):
-        local_faces_altered = []
-        current_stitch_faces = self.extrude_and_stitch(face, scale=1.0, distance=floor(self.length_of_segment * 0.25))
-        recursion_count = 1
-        for i in range(recursion_count):
-            final_faces = []
-            for face in current_stitch_faces:
-                final_faces += self.extrude_and_stitch(face, scale=1.0, distance=floor(self.length_of_segment * 0.05))
-            current_stitch_faces = final_faces
-        faces_post_bevel = []
-        for face in final_faces:
-            faces_post_bevel += self.bevel_cut(
-                original_face=face,
-                bevel_depths=bevel_depths,
-                border_sizes=border_sizes,
-                depth=len(bevel_depths),
+
+        first_extrusion = self.extrude_and_stitch(face=face, scale=1.0, distance=floor(self.length_of_segment*0.25))
+        faces_updated = []
+        for face_current in first_extrusion:
+            faces_one_bevel = self.bevel_cut(
+                original_face=face_current,
+                bevel_depths=bevel_depths[1:2],
+                border_sizes=border_sizes[1:2],
+                depth=1
             )
-        local_faces_altered += faces_post_bevel
-        return local_faces_altered
+            faces_one_bevel[0].update_texture_coords_using_atlas_index(texture_atlas_index=1, texture_atlas_size=2)
+            for face in faces_one_bevel:
+                face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
+            faces_updated += faces_one_bevel
+        return faces_updated
 
     def add_detail_intake(self, face):
         local_faces_altered = self.bevel_cut(
@@ -1343,6 +1380,12 @@ class Spaceship(PrimativeMeshEmission):
                 border_sizes=[0.15, 0.5]
             )
         del local_faces_altered[intake_index]
+        for face in local_faces_altered:
+            face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
+        for face in intake_faces_altered:
+            face.update_texture_coords_using_atlas_index(texture_atlas_index=0, texture_atlas_size=2)
+        intake_faces_altered[-5].update_texture_coords_using_atlas_index(texture_atlas_index=3, texture_atlas_size=2)
+
         # del local_faces_altered[4]
 
         return local_faces_altered + intake_faces_altered
@@ -1363,24 +1406,33 @@ class Spaceship(PrimativeMeshEmission):
                 local_faces_altered += self.add_detail_cubbies(face)
             elif instructions_per_segment[index_segment][index_instruction] < 0.5:
                 local_faces_altered += self.add_detail_pyrimide(face)
-            elif instructions_per_segment[index_segment][index_instruction] < 0.6:
+            elif instructions_per_segment[index_segment][index_instruction] < 0.73:
                 local_faces_altered += self.add_detail_recursive_extrude(
                     face,
-                    bevel_depths=[0.33],
-                    border_sizes=[0.6]
+                    bevel_depths=[0.4, 0.33],
+                    border_sizes=[0.0, 0.5]
                 )
-            elif instructions_per_segment[index_segment][index_instruction] < 0.89:
+                for face in local_faces_altered:
+                    if math.isnan(face.outer_vertices[0]):
+                        print('outer vertex is nan!')
+            elif instructions_per_segment[index_segment][index_instruction] < 0.75:
                 local_faces_altered += self.add_detail_intake(
                     face,
                 )
 
             elif instructions_per_segment[index_segment][index_instruction] < 0.9:
-                local_faces_altered += self.bevel_cut(
+                faces_special_bevel = self.bevel_cut(
                     original_face=face,
                     bevel_depths=[0.0, -0.5],
                     border_sizes=[0.25, 0.0],
                     depth=2,
                 )
+                faces_special_bevel[-5].update_texture_coords_using_atlas_index(texture_atlas_index=3, texture_atlas_size=2)
+                for face in faces_special_bevel[:-5]:
+                    face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
+                for face in faces_special_bevel[-4:]:
+                    face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
+                local_faces_altered += faces_special_bevel
             else:
                 local_faces_unaltered += [face]
         return local_faces_altered, local_faces_unaltered
@@ -1390,6 +1442,11 @@ class Spaceship(PrimativeMeshEmission):
         faces_altered_local = []
         current_stitch_faces += self.pyrimidize_face(original_face=face, center_point_offset=2.5)
         faces_altered_local += current_stitch_faces
+        for face in faces_altered_local:
+            face.update_texture_coords_using_atlas_index(
+                texture_atlas_index=2,
+                texture_atlas_size=2
+            )
         return faces_altered_local
 
     def add_detail_cubbies(self, face):
@@ -1397,12 +1454,22 @@ class Spaceship(PrimativeMeshEmission):
         current_stitch_faces += self.subdivide_quad_lengthwise(face=face, subdivisions=2, widthwise=True)
         faces_altered_local = []
         for new_stitch_face in current_stitch_faces:
-            faces_altered_local += self.bevel_cut(
+            faces_current_cubby = self.bevel_cut(
                 original_face=new_stitch_face,
                 bevel_depths=[-0.33],
                 border_sizes=[0.6],
                 depth=1,
             )
+            faces_current_cubby[0].update_texture_coords_using_atlas_index(
+                texture_atlas_index=3,
+                texture_atlas_size=2
+            )
+            for face in faces_current_cubby[1:]:
+                face.update_texture_coords_using_atlas_index(
+                    texture_atlas_index=2,
+                    texture_atlas_size=2
+                )
+            faces_altered_local += faces_current_cubby
         return faces_altered_local
 
     def extrude_and_stitch(self, face, number_of_faces=4, distance=1, scale=1.0):
@@ -1448,9 +1515,13 @@ class Polygon(PrimativeMesh):
         rotation_magnitude=0,
         rotation_axis=glm.vec3([0.0, 0.0, 1.0]),
         scale=glm.vec3([1.0, 1.0, 1.0]),
-        sides=3
+        sides=3,
+        transform_x=1.0,
+        transform_z=1.0,
      ):
         self.sides = sides
+        self.transform_x = transform_x
+        self.transform_z = transform_z
         super().__init__(
             shader=shader,
             diffuse=diffuse,
@@ -1467,13 +1538,65 @@ class Polygon(PrimativeMesh):
         """
         Generates the outer vertices and vertices of the triangle of this model
         """
-        face = self._generate_polygonal_face(pi / self.sides, self.sides)
+        face = self._generate_polygonal_face(
+            number_of_sides=self.sides,
+            transform_x=self.transform_x,
+            transform_z=self.transform_z,
+        )
         vertices = face.face_to_list()
         return np.array(
             vertices,
             dtype=np.float32
         ).flatten()
 
+class PolygonIrregular(Polygon):
+    def __init__(
+            self,
+            shader,
+            diffuse,
+            specular,
+            shininess=32.0,
+            dimensions=[5.0, 5.0],
+            position=[0.0, 0.0, 0.0],
+            rotation_magnitude=0,
+            rotation_axis=glm.vec3([0.0, 0.0, 1.0]),
+            scale=glm.vec3([1.0, 1.0, 1.0]),
+            sides=3,
+            transform_x=1.0,
+            transform_z=1.0,
+            radii=1.0,
+    ):
+        self.radii = radii
+        super().__init__(
+            shader=shader,
+            diffuse=diffuse,
+            specular=specular,
+            shininess=shininess,
+            dimensions=dimensions,
+            position=position,
+            rotation_magnitude=rotation_magnitude,
+            rotation_axis=rotation_axis,
+            scale=scale,
+            sides=sides,
+            transform_x=transform_x,
+            transform_z=transform_z,
+        )
+
+    def generate_vertices(self):
+        """
+        Generates the outer vertices and vertices of the triangle of this model
+        """
+        face = self._generate_irregular_polygonal_face(
+            number_of_sides=self.sides,
+            transform_x=self.transform_x,
+            transform_z=self.transform_z,
+            radii=self.radii,
+        )
+        vertices = face.face_to_list()
+        return np.array(
+            vertices,
+            dtype=np.float32
+        ).flatten()
 class QuadMesh(PrimativeMesh):
     pass
 
@@ -1580,7 +1703,7 @@ class FloorTileMesh(PrimativeMesh):
         self.specular = specular
         self.shininess = shininess
         self.position = position
-        self.rotation_magnitude = rotation_magnitude
+        self.rotation_magnitude = glm.vec3(rotation_magnitude)
         self.rotation_axis = glm.vec3(rotation_axis)
         self.scale = glm.vec3(scale)
         self.dimensions = dimensions
@@ -1802,7 +1925,7 @@ class Face():
     def calculate_radius(self):
         if self.outer_vertices_vec3 == None:
             self.calculate_outer_vertices_as_vec3()
-        self.radius = glm.distance(mean_point(self.outer_vertices_vec3), self.outer_vertices_vec3[0])
+        self.radius = glm.distance(calculate_mean_point(self.outer_vertices_vec3), self.outer_vertices_vec3[0])
 
     def set_texture_offsets(self, vertical, horizontal):
         self.texture_horizontal_offset = horizontal
@@ -1862,7 +1985,7 @@ class Face():
         self.outer_vertices = outer_vertices.copy()
 
         self.calculate_sides()
-        self.vertices = self.outer_vertices_to_vertices(number_of_sides=self.sides, reverse_texture_coords=True)
+        self.vertices = self.outer_vertices_to_vertices(reverse_texture_coordinates=True)
 
     def extrude_from_other_face_2(self, other, direction = [0.0, 1.0, 0.0], distance=1.0, flip_base=True, radius=1.0):
         """
@@ -1885,7 +2008,7 @@ class Face():
             self.outer_vertices = vec3_list_to_list(rotate_list(self.outer_vertices_vec3, math.ceil(len(self.outer_vertices_vec3)/2)))
         else:
             self.outer_vertices = vec3_list_to_list(self.outer_vertices_vec3)
-        self.vertices = self.outer_vertices_to_vertices(number_of_sides=len(self.outer_vertices_vec3))
+        self.vertices = self.outer_vertices_to_vertices()
 
         #todo: this should work....
         for vertex, other_vertex in zip(self.vertices, other.vertices):
@@ -1917,8 +2040,8 @@ class Face():
         for vertex in self.vertices:
             vertex.texture_coordinates[0] = lower_texture_coord_x_axis + vertex.texture_coordinates[0] * subtexture_magnitude
             vertex.texture_coordinates[1] = lower_texture_coord_y_axis + vertex.texture_coordinates[1] * subtexture_magnitude
-        for vertex in self.vertices:
-            print(vertex.texture_coordinates)
+        # for vertex in self.vertices:
+        #     print(vertex.texture_coordinates)
 
     def apply_hardset_quad_texture_coords(self):
         """
@@ -1960,9 +2083,9 @@ class Face():
                 self.outer_vertices[i] += offset.y
             if i%3 == 2:
                 self.outer_vertices[i] += offset.z
-        print(self.outer_vertices)
+        # print(self.outer_vertices)
 
-    def generate_texture_coordinates_polygonal(self, sides, reverse = True):
+    def generate_texture_coordinates_regular_polygon(self, sides, reverse=True):
         """
         A new means of generating texture coordinates for any (regular) polygon.
         Even works for polygons not on XZ plane at origin
@@ -1984,55 +2107,139 @@ class Face():
             texture_coordinates.reverse()
         return texture_coordinates
 
-    def outer_vertices_to_vertices(self, number_of_sides, reverse_texture_coords=False):
+    def generate_texture_coordinates_polygon(self, reverse=False):
+        """
+        Generate texture coordinates for any convex polygon (even irregular)
+        in 3D space.
+        :param reverse: reverse the texture coordinates at the end
+        :return: list of coordinates as vec2
+        """
+        texture_coordinates = []
+        self.calculate_outer_vertices_as_vec3()
+        sides = len(self.outer_vertices_vec3)
+        #1 get center point of polygon
+        center_point = calculate_mean_point(points=self.outer_vertices_vec3)
+        #get distances from center point to each vertex
+            #also, find the largest distance
+        vertex_distances = []
+        largest_distance = 0
+        for point in self.outer_vertices_vec3:
+            distance = glm.distance(point, center_point)
+            vertex_distances.append(distance)
+            if distance > largest_distance:
+                largest_distance = distance
+        #scale the distances by the largest
+        for index, distance in enumerate(vertex_distances):
+            vertex_distances[index] = distance/(largest_distance*2)
+
+        #Get the angles between the vertices
+        vertex_angles = []
+        angle_sum = 0
+        for index in range(sides-1):
+            a = self.outer_vertices_vec3[index]
+            b = self.outer_vertices_vec3[index+1]
+            c = center_point
+            angle = self.calculate_angle(a, b, c)
+            vertex_angles.append(angle)
+            angle_sum += angle
+        vertex_angles.append(2*pi - angle_sum)
+
+        is_even = False
+        if sides % 2 == 0:
+            is_even = True
+        #calculate initial angle offset (rotate the whole triangle)
+        if is_even:
+            if (sides/2) % 2 == 0:
+                angle_initial = pi/2 + vertex_angles[0] + vertex_angles[1]/2
+                if sides == 8:
+                    angle_initial = pi + vertex_angles[2] + vertex_angles[1]/2
+                elif sides == 12:
+                    angle_initial = pi + vertex_angles[2]/2 + vertex_angles[0] + vertex_angles[1]
+            else:
+                #6
+                angle_initial = pi + vertex_angles[0]
+                if sides == 10:
+                    angle_initial = pi + vertex_angles[0] + vertex_angles[1]
+        else:
+            angle_initial = pi + ((pi - vertex_angles[-1]) / 2)
+        vertex_distances = rotate_list(vertex_distances, steps=1)
+
+        #go around the unit circle, angle by angle, and place a point at the distance away
+        for index in range(0, sides):
+            angle_current = sum(vertex_angles[:index + 1])
+            coordinate = glm.vec2((0.0, 0.0))
+            coordinate.x = (cos(angle_initial - angle_current) * vertex_distances[index]) + 0.5
+            coordinate.y = (sin(angle_initial - angle_current) * vertex_distances[index]) + 0.5
+            texture_coordinates.append(coordinate)
+        if is_even:
+            texture_coordinates = rotate_list(texture_coordinates, steps=sides-1)
+        else:
+            texture_coordinates = rotate_list(texture_coordinates, steps=sides-1)
+        if reverse:
+            texture_coordinates.reverse()
+        return texture_coordinates
+
+    def calculate_angle(self, a, b, c):
+        CA = a - c
+        CB = b - c
+        angle = glm.acos(glm.dot(CA, CB) / (glm.length(CA) * glm.length(CB)))
+        return angle
+
+    def outer_vertices_to_vertices(self, reverse_texture_coordinates=False, regular=False):
         """
         Generates the real vertices (with normals, texture coords) of a face
-        :param face: the face we want to generate vertices for.  must have its outer vertices already
+        :param regular: polygon is regular or irregular
+        :param reverse_texture_coordinates: Flips texture coordinates about the textures Y-Axis
         :param number_of_sides: eg, 4 for square, 5 for pentagon
-        :return: the vertices to be drawn by opengl
+        :return: vertices ready to be drawn by opengl
         """
-
-        texture_coordinates = self.generate_texture_coordinates_polygonal(sides=number_of_sides)
-        if reverse_texture_coords:
-            texture_coordinates.reverse()
+        if not self.sides:
+            self.calculate_sides()
+        number_of_sides = self.sides
+        if not self.outer_vertices_vec3:
+            self.calculate_outer_vertices_as_vec3()
+        if regular:
+            texture_coordinates = self.generate_texture_coordinates_regular_polygon(sides=number_of_sides)
+        else:
+            texture_coordinates = self.generate_texture_coordinates_polygon(reverse=reverse_texture_coordinates)
 
         vertices = []
         texture_index = 1
         for i in range(int(number_of_sides) - 2):
             triangle_vertices = [Vertex(), Vertex(), Vertex()]
 
-            triangle_vertices[0].positions = glm.vec3([
+            triangle_vertices[0].positions = glm.vec3((
                 self.outer_vertices[0],
                 self.outer_vertices[1],
                 self.outer_vertices[2]
-            ])
-            triangle_vertices[0].texture_coordinates = glm.vec2([
+            ))
+            triangle_vertices[0].texture_coordinates = glm.vec2((
                 texture_coordinates[0].x,
                 texture_coordinates[0].y
-            ])
+            ))
             triangle_vertices[0].normals = glm.vec3([0.0, 1.0, 0.0])
 
-            triangle_vertices[1].positions = glm.vec3([
+            triangle_vertices[1].positions = glm.vec3((
                 self.outer_vertices[3 * i + 0 + 3 * 1],
                 self.outer_vertices[3 * i + 1 + 3 * 1],
                 self.outer_vertices[3 * i + 2 + 3 * 1]
-            ])
-            triangle_vertices[1].texture_coordinates = glm.vec2([
+            ))
+            triangle_vertices[1].texture_coordinates = glm.vec2((
                 texture_coordinates[texture_index].x,
                 texture_coordinates[texture_index].y
-            ])
+            ))
             triangle_vertices[1].normals = glm.vec3([0.0, 1.0, 0.0])
 
-            triangle_vertices[2].positions = glm.vec3([
+            triangle_vertices[2].positions = glm.vec3((
                 self.outer_vertices[3 * i + 0 + 3 * 2],
                 self.outer_vertices[3 * i + 1 + 3 * 2],
                 self.outer_vertices[3 * i + 2 + 3 * 2]
-            ])
-            triangle_vertices[2].texture_coordinates = glm.vec2([
+            ))
+            triangle_vertices[2].texture_coordinates = glm.vec2((
                 texture_coordinates[texture_index + 1].x,
                 texture_coordinates[texture_index + 1].y
-            ])
-            triangle_vertices[2].normals = glm.vec3([0.0, 1.0, 0.0])
+            ))
+            triangle_vertices[2].normals = glm.vec3((0.0, 1.0, 0.0))
             for vertex in triangle_vertices:
                 vertex.normals = calculate_normal([
                     triangle_vertices[0].positions,
@@ -2049,7 +2256,7 @@ class Face():
         """
         self.outer_vertices_vec3.reverse()
         self.outer_vertices = vec3_list_to_list(self.outer_vertices_vec3)
-        self.outer_vertices_to_vertices(number_of_sides=len(self.outer_vertices_vec3))
+        self.outer_vertices_to_vertices()
 
 class Vertex():
     def __init__(self):
@@ -2517,7 +2724,7 @@ class Prism(PrimativeMesh):
         self.specular = specular
         self.shininess = shininess
         self.position = glm.vec3(position)
-        self.rotation_magnitude = rotation_magnitude
+        self.rotation_magnitude = glm.vec3(rotation_magnitude)
         self.rotation_axis = glm.vec3(rotation_axis)
         self.scale = glm.vec3(scale)
         self.dimensions = dimensions
@@ -2561,7 +2768,7 @@ class Prism(PrimativeMesh):
         number_of_sides = self.sides
         initial_angle = pi / number_of_sides
         angle_of_rotation = 2 * pi / number_of_sides
-        faces = [self._generate_polygonal_face(initial_angle, number_of_sides)]
+        faces = [self._generate_polygonal_face(number_of_sides=number_of_sides)]
         # generate the second face via exude
         faces.append(Face())
         faces[1].extrude_from_other_face(other=faces[0], direction=[0.0, 1.0, 0.0], distance=height)
@@ -2655,7 +2862,7 @@ class SegmentedPrism(Prism):
         self.specular = specular
         self.shininess = shininess
         self.position = glm.vec3(position)
-        self.rotation_magnitude = rotation_magnitude
+        self.rotation_magnitude = glm.vec3(rotation_magnitude)
         self.rotation_axis = glm.vec3(rotation_axis)
         self.scale = glm.vec3(scale)
         self.dimensions = dimensions
@@ -2845,7 +3052,7 @@ def calculate_normal(vertices=[]):
     """
     return glm.normalize(glm.cross(vertices[1] - vertices[0], vertices[2] - vertices[0]))
 
-def mean_point(points):
+def calculate_mean_point(points):
     """
     Calculate the mean point of a polygon
     :param points: list of points of a polygon as glm.vec3s

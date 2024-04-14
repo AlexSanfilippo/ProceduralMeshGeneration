@@ -1,36 +1,34 @@
 """
-4th February, 2024
-last update: 9th March, 2024
-This files contains a code for creating and displaying our proc-gen spaceships
+6th April, 2024
+last update: 6th April 2024
+Displaying Proc-Gen Meshes for testing/developement
 
--[V]upload to github(initial)
--[V]Emission Map in our default shader
--[V]clear out old WFC code
--[]basic spaceship generator (in primative_meshes)
-    MAJOR FEATURES
-    -[]basic segmented prism (main section)
-        -[]Issue: Extrude is flipping texture around
-            -I think we need to re-calcuate texture coordinates of new-face
-                -how to go from outer-coordinates to texture coordinates?
-    -[]make main section symmetrical
-    -[]front/cockpit/nose
-    -[]rear thrusters
-        -[]glowing (emission map)
-    -all one-mesh model
-    -all in one texture  dictionary
-
--[]some sort of propulsion trail on our ship
--[]a starry skybox around the ship
--[]share and post on reddit, discord
--[]a video documenting our process
+-[V]Make this file
+-[V]Add code to generate and draw meshes in a meshes list which is drawn
+-[V]remove code related to ship trading game
+-[]fix texture coordinate bug in bevel_cut
+    -[V]extruded face bug
+    -[]side faces bug
+        -requires doing glTexCoord4f(s,t,0,q) instead of glTexCoord2f(s,t)
+            -where?
+            -where s,t are our texture coords as they are
+            -must calculate q
+-[V]Change texture filtering to Nearest
+-[]Add UI
+    -[]Display textured quad on screen
+    -[]click textured quad-change quad color or something
 
 """
 import math
+import threading
+from collections import defaultdict
 
 import glfw
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
 import pyrr
+
+import ProceduralMesh
 from TextureLoader import load_texture
 from Camera import Camera, FollowCamera
 import math as m
@@ -43,6 +41,13 @@ import PointLightCube as plc
 import ProceduralMesh as primatives
 import FPSCounter
 import SpaceShip
+from Menu import Menu
+from SpaceShip import Headquarters
+
+#AUDIO
+from pydub import AudioSegment
+from pydub.playback import play
+
 
 images = []
 
@@ -58,26 +63,19 @@ cycle_camera_mode = False
 yaw_counterclockwise, yaw_clockwise = False, False
 write_to_gif = False
 make_new_ship = False
+pause = False
 
 
-
+"""MENU TESTING"""
+my_menu = Menu()
 # the keyboard input callback
 def key_input_clb(window, key, scancode, action, mode):
     global left, right, forward, backward, make_new_surface, player_left, player_right, player_forward, \
-        player_backward, cycle_camera_mode, yaw_counterclockwise, yaw_clockwise, write_to_gif, make_new_ship
+        player_backward, cycle_camera_mode, yaw_counterclockwise, yaw_clockwise, write_to_gif, make_new_ship,\
+        pause
 
     if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
         glfw.set_window_should_close(window, True)
-    if key == glfw.KEY_LEFT and action == glfw.PRESS:
-        player_left = True
-    if key == glfw.KEY_RIGHT and action == glfw.PRESS:
-        player_right = True
-    if key == glfw.KEY_UP and action == glfw.PRESS:
-        player_forward = True
-    if key == glfw.KEY_DOWN and action == glfw.PRESS:
-        player_backward = True
-    if key == glfw.KEY_E and action == glfw.PRESS:
-        make_new_surface = True
     if key == glfw.KEY_W and action == glfw.PRESS:
         forward = True
     elif key == glfw.KEY_W and action == glfw.RELEASE:
@@ -94,16 +92,6 @@ def key_input_clb(window, key, scancode, action, mode):
         right = True
     elif key == glfw.KEY_D and action == glfw.RELEASE:
         right = False
-    if key == glfw.KEY_V and action == glfw.PRESS:
-        cycle_camera_mode = True
-    if key == glfw.KEY_PAGE_UP and action == glfw.PRESS:
-        yaw_clockwise = True
-    elif key == glfw.KEY_PAGE_UP and action == glfw.RELEASE:
-        yaw_clockwise = False
-    if key == glfw.KEY_PAGE_DOWN and action == glfw.PRESS:
-        yaw_counterclockwise = True
-    elif key == glfw.KEY_PAGE_DOWN and action == glfw.RELEASE:
-        yaw_counterclockwise = False
     if key == glfw.KEY_1 and action == glfw.PRESS:
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
     if key == glfw.KEY_2 and action == glfw.PRESS:
@@ -112,20 +100,37 @@ def key_input_clb(window, key, scancode, action, mode):
         write_to_gif = not write_to_gif
     if key == glfw.KEY_SPACE and action == glfw.PRESS:
         make_new_ship = True
+    if key == glfw.KEY_P and action == glfw.PRESS:
+        pause = not pause
+    if key == glfw.KEY_T and action == glfw.PRESS:
+        # if spaceship_parameters['diffuse'] == texture_dictionary['spaceship_diffuse']:
+        if spaceship_parameters['diffuse'] == texture_dictionary['atlas_debug_diffuse']:
+            spaceship_parameters['diffuse'] = texture_dictionary['penguin_diffuse']
+            spaceship_parameters['specular'] = texture_dictionary['penguin_specular']
+            spaceship_parameters['emission'] = texture_dictionary['penguin_emission']
+            update_spaceship_texture()
+        else:
+            # spaceship_parameters['diffuse'] = texture_dictionary['spaceship_diffuse']
+            # spaceship_parameters['specular'] = texture_dictionary['spaceship_specular']
+            # spaceship_parameters['emission'] = texture_dictionary['spaceship_emission']
+            spaceship_parameters['diffuse'] = texture_dictionary['atlas_debug_diffuse']
+            spaceship_parameters['specular'] = texture_dictionary['atlas_debug_specular']
+            spaceship_parameters['emission'] = texture_dictionary['atlas_debug_emission']
+            update_spaceship_texture()
 
-    """GAMEPAD INPUT"""
 
-def gamepad_callback():
-    global make_new_ship
-    state = glfw.get_gamepad_state(joystick_id=glfw.JOYSTICK_1)
-    if not state:
-        return
-    if state.buttons[glfw.GAMEPAD_BUTTON_A]:
-        print('pressed A')
-        make_new_ship = True
+def update_spaceship_texture():
+    ships[0].model.set_diffuse(spaceship_parameters['diffuse'])
+    ships[0].model.set_specular(spaceship_parameters['specular'])
+    ships[0].model.set_emission(spaceship_parameters['emission'])
 
-# do the camera movement, call this function in the main loop
+
 def do_movement(speed=1.0):
+    """
+    do the camera movement, call this function in the main loop
+    :param speed:
+    :return:
+    """
     if left:
         cam.process_keyboard("LEFT", 0.05*speed)
     if right:
@@ -142,18 +147,14 @@ def do_movement(speed=1.0):
 
 def mouse_look_clb(window, xpos, ypos):
     global first_mouse, lastX, lastY
-
     if first_mouse:
         lastX = xpos
         lastY = ypos
         first_mouse = False
-
     xoffset = xpos - lastX
     yoffset = lastY - ypos
-
     lastX = xpos
     lastY = ypos
-
     cam.process_mouse_movement(xoffset, yoffset)
 
 def scroll_callback(window, xoffset, yoffset):
@@ -179,6 +180,16 @@ out vec3 frag_pos;
 void main()
 {
     tex_coords = a_texture;
+    
+    /*
+    tex_coords = a_texture;
+    float q_coord = 0.9;    
+    if (tex_coords == vec2(1,1) || tex_coords == vec2(0,0)){
+        tex_coords = tex_coords / q_coord;
+        //tex_coords.x = tex_coords.x / q_coord;
+    }
+    */
+    
     frag_pos = vec3(model * vec4(a_position, 1.0));
     normal = mat3(transpose(inverse(model))) * a_normal;
     gl_Position = projection * view * vec4(frag_pos, 1.0);
@@ -239,12 +250,24 @@ uniform SpotLight spot_light;
 uniform Material material;
 
 // function prototypes
-vec3 CalcDirLight(DirLight light, vec3 normal, vec3 view_dir);
-vec3 CalcPointLight(PointLight light, vec3 normal, vec3 frag_pos, vec3 view_dir);
+vec3 CalcDirLight(DirLight light, vec3 normal, vec3 view_dir, vec2 tex_coords);
+vec3 CalcPointLight(PointLight light, vec3 normal, vec3 frag_pos, vec3 view_dir, vec2 tex_coords);
 vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 frag_pos, vec3 view_dir);
 
 void main()
 {    
+    vec2 tex_coords_alternate =  tex_coords;
+    
+    /*
+    float q_coord = 0.1f;
+    if (tex_coords_alternate.x > 0.9f && tex_coords_alternate.y > 0.9f){
+        tex_coords_alternate = tex_coords_alternate * q_coord;
+    }
+    if (tex_coords_alternate == vec2(0.f, 1.f)){
+        tex_coords_alternate = tex_coords_alternate * q_coord;
+    }
+    */
+        
     // properties
     vec3 norm = normalize(normal);
     vec3 view_dir = normalize(view_pos - frag_pos);
@@ -257,20 +280,20 @@ void main()
     // == =====================================================
     vec3 result;
     // phase 1: directional lighting
-    result = CalcDirLight(dir_light, norm, view_dir);
+    result = CalcDirLight(dir_light, norm, view_dir, tex_coords_alternate);
     // phase 2: point lights
     for(int i = 0; i < NR_POINT_LIGHTS; i++)
-        result += CalcPointLight(point_lights[i], norm, frag_pos, view_dir);    
+        result += CalcPointLight(point_lights[i], norm, frag_pos, view_dir, tex_coords_alternate);    
     // phase 3: spotlight
-    result += CalcSpotLight(spot_light, norm, frag_pos, view_dir);    
+    //result += CalcSpotLight(spot_light, norm, frag_pos, view_dir);    
     // emission
-    vec3 emission = texture(material.emission, tex_coords).rgb;
+    vec3 emission = texture(material.emission, tex_coords_alternate).rgb;
     result = result + emission;
     frag_color = vec4(result, 1.0);
 }
 
 // calculates the color when using a directional light.
-vec3 CalcDirLight(DirLight light, vec3 normal, vec3 view_dir)
+vec3 CalcDirLight(DirLight light, vec3 normal, vec3 view_dir, vec2 tex_coords)
 {
     vec3 light_dir = normalize(-light.direction);
 
@@ -287,7 +310,7 @@ vec3 CalcDirLight(DirLight light, vec3 normal, vec3 view_dir)
 }
 
 // calculates the color when using a point light.
-vec3 CalcPointLight(PointLight light, vec3 normal, vec3 frag_pos, vec3 view_dir)
+vec3 CalcPointLight(PointLight light, vec3 normal, vec3 frag_pos, vec3 view_dir, vec2 tex_coords)
 {
     vec3 light_dir = normalize(light.position - frag_pos);
     // diffuse shading
@@ -396,7 +419,7 @@ glEnable(GL_DEPTH_TEST)
 glEnable(GL_BLEND)
 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-projection = pyrr.matrix44.create_perspective_projection_matrix(45, WIDTH / HEIGHT, 0.1, 100)
+projection_2 = pyrr.matrix44.create_perspective_projection_matrix(45, WIDTH / HEIGHT, 0.1, 2000)
 
 model_loc = glGetUniformLocation(shader, "model")
 proj_loc = glGetUniformLocation(shader, "projection")
@@ -404,34 +427,53 @@ view_loc = glGetUniformLocation(shader, "view")
 
 view_pos_loc = glGetUniformLocation(shader, "view_pos")  # cam pos for specular lighting
 
-glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection)
+glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection_2)
 
-# create the light cube
-my_plc = plc.PointLightCube(pos=[0.0, 0.0, 0.0], ambient=[0.0]*3, diffuse=[0.0]*3,
-                            specular=[0.0]*3)
-debug_plcs = []
-debug_plcs.append(plc.PointLightCube(
-    pos=[0.0, 5.0, 5.0],
-    ambient=[0.55]*3,
-    diffuse=[0.9]*3,
-    specular=[0.9]*3
-))
-# nighty night mode
-# debug_plcs.append(plc.PointLightCube(
-#     pos=[0.0, 5.0, 5.0],
-#     ambient=[0.0]*3,
-#     diffuse=[0.0]*3,
-#     specular=[0.0]*3
-# ))
-
-#seed random
-seed = 1996
-r.seed(seed)
 
 """direction light settings"""
 direction_diffuse = [0.0]*3
 direction_ambient = [0.0]*3
 direction_specular = [0.0]*3
+# create the light cube
+my_plc = plc.PointLightCube(pos=[0.0, 20.0, 0.0], ambient=[0.25]*3, diffuse=[0.9]*3,
+                            specular=[0.8]*3, linear=0.0014, quadratic=.000007)
+debug_plcs = [my_plc]
+move_whole_compass_z = -80
+debug_plcs.append(plc.PointLightCube(
+    pos=[0.0, 10.0, move_whole_compass_z+5.0],
+    ambient=[0.1]*3,
+    diffuse=[0.1]*3,
+    specular=[0.1]*3
+))
+debug_plcs.append(plc.PointLightCube(
+    pos=[0.0, 5.0, move_whole_compass_z+10.0],
+    ambient=[0.0, 0.0, 1.0],
+    diffuse=[0.0, 0.0, 1.0],
+    specular=[0.0, 0.0, 1.0],
+))
+debug_plcs.append(plc.PointLightCube(
+    pos=[0.0, 5.0, move_whole_compass_z+0.0],
+    ambient=[1.0, 0.0, 0.0],
+    diffuse=[1.0, 0.0, 0.0],
+    specular=[1.0, 0.0, 0.0],
+))
+debug_plcs.append(plc.PointLightCube(
+    pos=[5.0, 5.0, move_whole_compass_z+5.0],
+    ambient=[0.0, 1.0, 0.0],
+    diffuse=[0.0, 1.0, 0.0],
+    specular=[0.0, 1.0, 0.0],
+))
+debug_plcs.append(plc.PointLightCube(
+    pos=[-5.0, 5.0, move_whole_compass_z+5.0],
+    ambient=[1.0, 1.0, 0.0],
+    diffuse=[1.0, 1.0, 0.0],
+    specular=[1.0, 1.0, 0.0],
+))
+
+seed = 1999
+r.seed(seed)
+
+
 
 # direction light pass to shader
 glUniform3fv(glGetUniformLocation(shader, "dir_light.position"), 1, [0, 20, 10])
@@ -442,206 +484,214 @@ glUniform3fv(glGetUniformLocation(shader, "dir_light.specular"), 1, direction_sp
 
 """Tile Sets"""
 #simplest possible tileset: cross, straight(x2), and blank
-tile_textures = glGenTextures(13)
-load_texture("Textures/debug_texture_atlas.png", tile_textures[0])
-load_texture("Textures/debug_texture_atlas.png", tile_textures[1])
-load_texture("Textures/debug_texture_atlas.png", tile_textures[2])
-load_texture("Textures/debug_texture_atlas.png", tile_textures[3])
-load_texture("Textures/debug_texture_atlas.png", tile_textures[4])
-load_texture("Textures/debug_texture_atlas.png", tile_textures[5])
+tile_textures = glGenTextures(16)
+load_texture("Textures/penguin_atlas_emission.png", tile_textures[0])
+load_texture("Textures/penguin_atlas_emission.png", tile_textures[1])
+load_texture("Textures/penguin_atlas_diffusion.png", tile_textures[2])
+load_texture("Textures/debug_quad_red.png", tile_textures[3])
+load_texture("Textures/penguin_atlas_specular.png", tile_textures[4])
+load_texture("Textures/penguin_atlas_specular.png", tile_textures[5])
 load_texture("Textures/debug_texture_atlas.png", tile_textures[6])
 load_texture("Textures/spaceship_texture_atlas_1.png", tile_textures[7])
 load_texture("Textures/spaceship_texture_atlas_1_specular.png", tile_textures[8])
 load_texture("Textures/spaceship_texture_atlas_1_emission.png", tile_textures[9])
-load_texture("Textures/debug_texture_atlas_2.png", tile_textures[10])
-load_texture("Textures/debug_texture_atlas_2_emission.png", tile_textures[11])
-load_texture("Textures/debug_texture_atlas_2_specular.png", tile_textures[12])
+load_texture("Textures/debug_diffuse_coordinates.png", tile_textures[10])
+load_texture("Textures/penguin_atlas_emission.png", tile_textures[11])
+load_texture("Textures/penguin_atlas_specular.png", tile_textures[12])
+load_texture("Textures/whoa_atlas_diffuse.png", tile_textures[13])
+load_texture("Textures/whoa_atlas_specular.png", tile_textures[14])
+load_texture("Textures/penguin_atlas_emission.png", tile_textures[15])
 
 
 texture_dictionary = {
     "pink": tile_textures[3],
-    "red": tile_textures[2],
-    "stone": tile_textures[1],
-    "atlas_debug": tile_textures[4],
+    "penguin_diffuse": tile_textures[2],
+    "penguin_emission": tile_textures[1],
+    "penguin_specular": tile_textures[4],
     "spaceship_diffuse": tile_textures[7],
     "spaceship_specular": tile_textures[8],
     "spaceship_emission": tile_textures[9],
     "atlas_debug_diffuse": tile_textures[10],
     "atlas_debug_emission": tile_textures[11],
     "atlas_debug_specular": tile_textures[12],
+    "whoa_diffuse": tile_textures[13],
+    "whoa_specular": tile_textures[14],
+    "whoa_emission": tile_textures[15],
 }
 
+
+debug_ship_orders = [
+        ['stuck']
+]
 
 spaceship_parameters = {
-    'number_of_sides': 8,
+    'number_of_sides': 7,
     'number_of_segments': 4,
-    # 'transform_x': 0.25 + random()*1.25,
-    'transform_x': 0.66,
-    'transform_z': 1.0,
+    'transform_x': 1.0,
+    'transform_z': 2.0,
+    'scale': 3.3,
+    # 'diffuse': texture_dictionary['spaceship_diffuse'],
+    # 'specular': texture_dictionary['spaceship_specular'],
+    # 'emission': texture_dictionary['spaceship_emission'],
+    'diffuse': texture_dictionary['whoa_diffuse'],
+    'specular': texture_dictionary['whoa_specular'],
+    'emission': texture_dictionary['whoa_emission'],
+    'position': [0.0, 0.0, 0.0],
+    'length_of_segment': 10,
 }
 
-spaceship = primatives.Spaceship(
-    shader=shader,
-    # diffuse=texture_dictionary['atlas_debug_diffuse'],
-    # specular=texture_dictionary['atlas_debug_specular'],
-    # emission=texture_dictionary['atlas_debug_emission'],
-    diffuse=texture_dictionary['spaceship_diffuse'],
-    specular=texture_dictionary['spaceship_specular'],
-    emission=texture_dictionary['spaceship_emission'],
-    dimensions=[5.0, 5.0],
-    position=[0.0, 0.0, 0.0],
-    rotation_magnitude=[-m.pi*0.5, m.pi*0.25],
-    rotation_axis=[0.0, 0.0, 1.0],
-    number_of_sides=spaceship_parameters['number_of_sides'],
-    number_of_segments=spaceship_parameters['number_of_segments'],
-    transform_x=spaceship_parameters['transform_x'],
-    transform_z=spaceship_parameters['transform_z'],
-    length_of_segment=5.0,
-    radius=3.0,
-)
-ships = [SpaceShip.Spaceship(model=spaceship)]
-ships[0].set_velocity(velocity=[-3.0, 0.0, 0.0])
 
-bezier_cube = primatives.NPrismBezierCut(
-    shader=shader,
-    diffuse=texture_dictionary["atlas_debug_diffuse"],
-    specular=texture_dictionary["atlas_debug"],
-    shininess=32.0,
-    dimensions=[2.0],
-    position=[0.0, 5.0, -5.0],
-    rotation_axis=glm.vec3([0.0, 1.0, 0.0]),
-    rotation_magnitude=m.pi,
-    scale=glm.vec3([5.0]*3),
-    sides=5
-)
+"""Texture Coordinate Debugging Models"""
+shapes = []
+for sides in list(range(3, 13)):
+    shapes.append(primatives.Polygon(
+        shader=shader,
+        diffuse=spaceship_parameters['diffuse'],
+        specular=spaceship_parameters['specular'],
+        dimensions=[5.0, 5.0],
+        position=[0.0, 0.0, sides*10],
+        rotation_magnitude=[0.0, 0.0, -m.pi * 0.5],
+        scale=spaceship_parameters['scale'],
+        sides=sides,
+        transform_x=2.0,
+        transform_z=1.0,
+    ))
 
-testing_model = primatives.Prism(
-    shader=shader,
-    diffuse=texture_dictionary['pink'],
-    specular=texture_dictionary['pink'],
-    dimensions=[2.0, 2.0],
-    position=[0.0]*3,
-    sides = 4,
-)
-testing_model_polygon = primatives.Polygon(
-    shader=shader,
-    diffuse=texture_dictionary['stone'],
-    specular=texture_dictionary['stone'],
-    dimensions=[20.0, 2.0],
-    position=[5.0, 0.0, 0.0],
-    sides = 12,
+"""Testing trapezoid texturing algorithm"""
+shapes.append(
+    primatives.PolygonIrregular(
+        shader=shader,
+        diffuse=spaceship_parameters['diffuse'],
+        specular=spaceship_parameters['specular'],
+        dimensions=[5.0, 5.0],
+        position=[10.0, 0.0, 40],
+        rotation_magnitude=[0.0, 0.0, -m.pi * 0.5],
+        scale=spaceship_parameters['scale'],
+        sides=4,
+        transform_x=1.0,
+        transform_z=1.0,
+        radii=[2.0, 1.0, 1.0, 2.0]
+    )
 )
 
-testing_primative_mesh_emission = primatives.PrimativeMeshEmission(
-    shader=shader,
-    diffuse=texture_dictionary['atlas_debug_diffuse'],
-    specular=texture_dictionary['atlas_debug_specular'],
-    emission=texture_dictionary['atlas_debug_emission'],
-    dimensions=[10.0, 10.0],
-    position=[20.0, 10.0, 0.0],
-)
+ships = []
+num_ships = 1
+for ship in range(num_ships):
+    spaceship = primatives.Spaceship(
+        shader=shader,
+        # diffuse=texture_dictionary['atlas_debug_diffuse'],
+        # specular=texture_dictionary['atlas_debug_specular'],
+        # emission=texture_dictionary['atlas_debug_emission'],
+        diffuse=spaceship_parameters['diffuse'],
+        specular=spaceship_parameters['specular'],
+        emission=spaceship_parameters['emission'],
+        # diffuse=texture_dictionary["penguin_diffuse"],
+        # emission=texture_dictionary["penguin_emission"],
+        # specular=texture_dictionary["penguin_specular"],
+        dimensions=[5.0, 5.0],
+        position=spaceship_parameters['position'],
+        rotation_magnitude=[0.0, 0.0, -m.pi*0.5],
+        number_of_sides=spaceship_parameters['number_of_sides'],
+        # number_of_segments=spaceship_parameters['number_of_segments'],
+        number_of_segments=spaceship_parameters['number_of_segments'],
+        transform_x=spaceship_parameters['transform_x'],
+        transform_z=spaceship_parameters['transform_z'],
+        length_of_segment=spaceship_parameters['length_of_segment'],
+        radius=3.0,
+        scale=spaceship_parameters['scale']
+    )
+    ship_current = SpaceShip.Spaceship(model=spaceship, wallet=50)
+    ship_current.set_velocity(velocity=[-1.5, 0.0, 0.0])
+    ships.append(ship_current)
+
+    ship_current.set_orders(
+        orders=[['stuck']]
+    )
+
+
+my_fps = FPSCounter.FPSCounter(frame_interval=300.0, mute=True)
+
+
+meshes = []
+meshes += ships
+
+
+def generate_new_ship():
+    global spaceship
+    spaceship = primatives.Spaceship(
+        shader=shader,
+        diffuse=spaceship_parameters['diffuse'],
+        specular=spaceship_parameters['specular'],
+        emission=spaceship_parameters['emission'],
+        dimensions=[5.0, 5.0],
+        position=ships[0].model.position,
+        rotation_magnitude=ships[0].model.rotation_magnitude,
+        rotation_axis=glm.vec3([0.0, 0.0, 1.0]),
+        number_of_sides=spaceship_parameters['number_of_sides'],
+        number_of_segments=spaceship_parameters['number_of_segments'],
+        transform_x=spaceship_parameters['transform_x'],
+        transform_z=spaceship_parameters['transform_z'],
+        length_of_segment=spaceship_parameters['length_of_segment'],
+        radius=3.0,
+        scale=spaceship_parameters['scale'],
+
+    )
+    ships[0].model = spaceship
 
 
 
-my_fps = FPSCounter.FPSCounter(frame_interval=300.0)
-
-# the main application loop
 while not glfw.window_should_close(window):
     glfw.poll_events()
-    gamepad_callback()
     do_movement(speed=10)
     my_fps.update()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    ct = glfw.get_time()
 
     view = cam.get_view_matrix()
     glUniformMatrix4fv(view_loc, 1, GL_FALSE, view)
 
-    """TESTING Proc Gen"""
-    # bezier_cube.draw(view=view)
-    # testing_model.draw(view=view)
-    # testing_model_polygon.draw(view=view)
-    # testing_primative_mesh_emission.draw(view=view)
-    spaceship.rotate_over_time(speed=0.3)
-    # spaceship.draw(view=view)
+    for mesh in meshes:
+        mesh.draw(view=view)
 
-    "process ships"
-    for ship in ships:
-        ship.draw(view=view)
-        ship.move(delta_time=0.1)
-        #add delta_time*velocity to position
-            #ie, move ship
-        #check if ship close enough to target to stop and trade
-        #do trades
-        #if ship reaches HQ
-            #update info
-                #planet prices
-                #company money
-        #
+    # for shape in shapes:
+    #     shape.draw(view=view)
 
     """draw new ship"""
     if make_new_ship:
-        print('making a new ship')
         make_new_ship = False
-        seed += 1
-        spaceship = primatives.Spaceship(
-            shader=shader,
-            diffuse=texture_dictionary['spaceship_diffuse'],
-            specular=texture_dictionary['spaceship_specular'],
-            emission=texture_dictionary['spaceship_emission'],
-            dimensions=[5.0, 5.0],
-            position=ships[0].model.position,
-            rotation_magnitude=ships[0].model.rotation_magnitude,
-            rotation_axis=glm.vec3([0.0, 0.0, 1.0]),
-            number_of_sides=spaceship_parameters['number_of_sides'],
-            number_of_segments=spaceship_parameters['number_of_segments'],
-            transform_x=spaceship_parameters['transform_x'],
-            transform_z=spaceship_parameters['transform_z'],
-            length_of_segment=5.0,
-            radius=3.0,
-        )
-        ships[0].model = spaceship
-
+        generate_new_ship()
 
     # draw the point light cube
-    # my_plc.draw(view)
-    for light in debug_plcs:
-        light.draw(view)
+    # for light in debug_plcs:
+    #     light.draw(view)
     glUseProgram(shader)
 
     glUniformMatrix4fv(view_loc, 1, GL_FALSE, view)
 
-    projection = pyrr.matrix44.create_perspective_projection_matrix(45, WIDTH / HEIGHT, 0.1, 150)
+    projection = pyrr.matrix44.create_perspective_projection_matrix(45, WIDTH / HEIGHT, 0.1, 2050)
     glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection)
 
     # pass cam position for specular light
     glUniform3fv(view_pos_loc, 1, list(cam.camera_pos))
-
     point_light_position_loc = glGetUniformLocation(shader, "point_light.position")
-
-
-    glUniform1f(glGetUniformLocation(shader, "material.shininess"), 32.0)
-
-    # light color components to shader
-    # glUniform3fv(glGetUniformLocation(shader, "point_lights[0].position"), 1, my_plc.get_pos())
-    glUniform3fv(glGetUniformLocation(shader, "point_lights[0].position"), 1, [0.0, 0.0, 0.0])
-    glUniform3fv(glGetUniformLocation(shader, "point_lights[0].diffuse"), 1, my_plc.get_diffuse())
-    glUniform3fv(glGetUniformLocation(shader, "point_lights[0].ambient"), 1, my_plc.get_ambient())
-    glUniform3fv(glGetUniformLocation(shader, "point_lights[0].specular"), 1, my_plc.get_specular())
-    glUniform1f(glGetUniformLocation(shader, "point_lights[0].constant"), my_plc.get_constant())
-    glUniform1f(glGetUniformLocation(shader, "point_lights[0].linear"), my_plc.get_linear())
-    glUniform1f(glGetUniformLocation(shader, "point_lights[0].quadratic"), my_plc.get_quadratic())
+    glUniform1f(glGetUniformLocation(shader, "material.shininess"), 4.0)
+    glUniform3fv(glGetUniformLocation(shader, "point_lights[0].position"), 1, debug_plcs[0].get_pos())
+    glUniform3fv(glGetUniformLocation(shader, "point_lights[0].diffuse"), 1, debug_plcs[0].get_diffuse())
+    glUniform3fv(glGetUniformLocation(shader, "point_lights[0].ambient"), 1, debug_plcs[0].get_ambient())
+    glUniform3fv(glGetUniformLocation(shader, "point_lights[0].specular"), 1, debug_plcs[0].get_specular())
+    glUniform1f(glGetUniformLocation(shader, "point_lights[0].constant"), debug_plcs[0].get_constant())
+    glUniform1f(glGetUniformLocation(shader, "point_lights[0].linear"), debug_plcs[0].get_linear())
+    glUniform1f(glGetUniformLocation(shader, "point_lights[0].quadratic"), debug_plcs[0].get_quadratic())
 
     #second light for mesh viewing
-    glUniform3fv(glGetUniformLocation(shader, "point_lights[1].position"), 1, debug_plcs[0].get_pos())
-    glUniform3fv(glGetUniformLocation(shader, "point_lights[1].diffuse"), 1, debug_plcs[0].get_diffuse())
-    glUniform3fv(glGetUniformLocation(shader, "point_lights[1].ambient"), 1, debug_plcs[0].get_ambient())
-    glUniform3fv(glGetUniformLocation(shader, "point_lights[1].specular"), 1, debug_plcs[0].get_specular())
-    glUniform1f(glGetUniformLocation(shader, "point_lights[1].constant"), debug_plcs[0].get_constant())
-    glUniform1f(glGetUniformLocation(shader, "point_lights[1].linear"), debug_plcs[0].get_linear())
-    glUniform1f(glGetUniformLocation(shader, "point_lights[1].quadratic"), debug_plcs[0].get_quadratic())
+    glUniform3fv(glGetUniformLocation(shader, "point_lights[1].position"), 1, debug_plcs[1].get_pos())
+    glUniform3fv(glGetUniformLocation(shader, "point_lights[1].diffuse"), 1, debug_plcs[1].get_diffuse())
+    glUniform3fv(glGetUniformLocation(shader, "point_lights[1].ambient"), 1, debug_plcs[1].get_ambient())
+    glUniform3fv(glGetUniformLocation(shader, "point_lights[1].specular"), 1, debug_plcs[1].get_specular())
+    glUniform1f(glGetUniformLocation(shader, "point_lights[1].constant"), debug_plcs[1].get_constant())
+    glUniform1f(glGetUniformLocation(shader, "point_lights[1].linear"), debug_plcs[1].get_linear())
+    glUniform1f(glGetUniformLocation(shader, "point_lights[1].quadratic"), debug_plcs[1].get_quadratic())
 
-    # spot light
+    # spotlight
     glUniform3fv(glGetUniformLocation(shader, "spot_light.position"), 1, list(cam.camera_pos))
     glUniform3fv(glGetUniformLocation(shader, "spot_light.direction"), 1, list(cam.camera_front))
     glUniform3fv(glGetUniformLocation(shader, "spot_light.diffuse"), 1, [0.0]*3)
@@ -654,8 +704,8 @@ while not glfw.window_should_close(window):
     glUniform1f(glGetUniformLocation(shader, "spot_light.quadratic"), 0.00007)
 
     if write_to_gif:
-        window_as_numpy_arr = np.uint8(glReadPixels(0,0,800,800,GL_RGB, GL_FLOAT)*255.0)
-        window_as_numpy_arr = np.flip(window_as_numpy_arr,0)
+        window_as_numpy_arr = np.uint8(glReadPixels(0, 0, 800, 800, GL_RGB, GL_FLOAT)*255.0)
+        window_as_numpy_arr = np.flip(window_as_numpy_arr, 0)
         window_as_PIL_image = Image.fromarray(window_as_numpy_arr)
         images.append(window_as_PIL_image)
 
@@ -663,7 +713,7 @@ while not glfw.window_should_close(window):
 
 if write_to_gif:
     images[0].save(
-            'spaceship.gif',
+            'workshop.gif',
             save_all=True,
             append_images=images[1:],
             optimize=False,
