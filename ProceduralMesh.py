@@ -1876,7 +1876,7 @@ class Face():
         for vertex in self.vertices:
             vertex.positions += offset
 
-    def calculate_normal(self, reverse = False):
+    def calculate_normal(self, reverse=False):
         """
         uses outer vertices to calculate normal.
         :return: glm.vec3 representing the normal to this face's plane
@@ -2040,8 +2040,6 @@ class Face():
         for vertex in self.vertices:
             vertex.texture_coordinates[0] = lower_texture_coord_x_axis + vertex.texture_coordinates[0] * subtexture_magnitude
             vertex.texture_coordinates[1] = lower_texture_coord_y_axis + vertex.texture_coordinates[1] * subtexture_magnitude
-        # for vertex in self.vertices:
-        #     print(vertex.texture_coordinates)
 
     def apply_hardset_quad_texture_coords(self):
         """

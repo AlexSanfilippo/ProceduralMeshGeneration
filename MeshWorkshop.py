@@ -49,6 +49,7 @@ from pydub import AudioSegment
 from pydub.playback import play
 
 
+
 images = []
 
 follow_cam = FollowCamera(camera_pos=[6.0, 17.0, 12.0])
@@ -64,15 +65,16 @@ yaw_counterclockwise, yaw_clockwise = False, False
 write_to_gif = False
 make_new_ship = False
 pause = False
+cycle_ship_texture = 0
 
 
-"""MENU TESTING"""
+"""Text MENU TESTING"""
 my_menu = Menu()
 # the keyboard input callback
 def key_input_clb(window, key, scancode, action, mode):
     global left, right, forward, backward, make_new_surface, player_left, player_right, player_forward, \
         player_backward, cycle_camera_mode, yaw_counterclockwise, yaw_clockwise, write_to_gif, make_new_ship,\
-        pause
+        pause, cycle_ship_texture
 
     if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
         glfw.set_window_should_close(window, True)
@@ -103,21 +105,35 @@ def key_input_clb(window, key, scancode, action, mode):
     if key == glfw.KEY_P and action == glfw.PRESS:
         pause = not pause
     if key == glfw.KEY_T and action == glfw.PRESS:
+        if cycle_ship_texture < 2:
+            cycle_ship_texture += 1
+        else:
+            cycle_ship_texture = 0
         # if spaceship_parameters['diffuse'] == texture_dictionary['spaceship_diffuse']:
-        if spaceship_parameters['diffuse'] == texture_dictionary['atlas_debug_diffuse']:
+        if cycle_ship_texture == 0:
             spaceship_parameters['diffuse'] = texture_dictionary['penguin_diffuse']
             spaceship_parameters['specular'] = texture_dictionary['penguin_specular']
             spaceship_parameters['emission'] = texture_dictionary['penguin_emission']
             update_spaceship_texture()
-        else:
-            # spaceship_parameters['diffuse'] = texture_dictionary['spaceship_diffuse']
-            # spaceship_parameters['specular'] = texture_dictionary['spaceship_specular']
-            # spaceship_parameters['emission'] = texture_dictionary['spaceship_emission']
+        elif cycle_ship_texture == 1:
             spaceship_parameters['diffuse'] = texture_dictionary['atlas_debug_diffuse']
             spaceship_parameters['specular'] = texture_dictionary['atlas_debug_specular']
             spaceship_parameters['emission'] = texture_dictionary['atlas_debug_emission']
             update_spaceship_texture()
+        elif cycle_ship_texture == 2:
+            spaceship_parameters['diffuse'] = texture_dictionary['whoa_diffuse']
+            spaceship_parameters['specular'] = texture_dictionary['whoa_specular']
+            spaceship_parameters['emission'] = texture_dictionary['atlas_debug_emission']
+            update_spaceship_texture()
 
+def mouse_button_callback(window, button, action, mods):
+    global make_new_ship
+    left_click = button == glfw.MOUSE_BUTTON_LEFT and action == glfw.PRESS
+    right_click = button == glfw.MOUSE_BUTTON_RIGHT and action == glfw.PRESS
+    if button == left_click:
+       mpos = glfw.get_cursor_pos(window)
+       print("Cursor Position at (", mpos[0], " : ", mpos[1])
+    test_gui.button_update(position_mouse=glfw.get_cursor_pos(window), left_click=left_click, right_click=right_click)
 
 def update_spaceship_texture():
     ships[0].model.set_diffuse(spaceship_parameters['diffuse'])
@@ -392,17 +408,18 @@ glfw.set_cursor_pos_callback(window, mouse_look_clb)
 glfw.set_key_callback(window, key_input_clb)
 #set the scroll-wheel input callback
 glfw.set_scroll_callback(window, scroll_callback)
+#set the mouse callback
+glfw.set_mouse_button_callback(window, mouse_button_callback)
 # capture the mouse cursor
-glfw.set_input_mode(window, glfw.CURSOR, glfw.CURSOR_DISABLED)
+# glfw.set_input_mode(window, glfw.CURSOR, glfw.CURSOR_DISABLED)
+glfw.set_input_mode(window, glfw.CURSOR, glfw.CURSOR_CAPTURED)
 
 # make the context current
 glfw.make_context_current(window)
 
 shader = compileProgram(compileShader(vertex_src, GL_VERTEX_SHADER), compileShader(fragment_src, GL_FRAGMENT_SHADER))
 
-
 glEnable(GL_CULL_FACE)
-
 #uncomment to see that cull is working by culling front faces rather than back
 # glCullFace(GL_BACK)
 # glFrontFace(GL_CW)
@@ -484,10 +501,10 @@ glUniform3fv(glGetUniformLocation(shader, "dir_light.specular"), 1, direction_sp
 
 """Tile Sets"""
 #simplest possible tileset: cross, straight(x2), and blank
-tile_textures = glGenTextures(16)
-load_texture("Textures/penguin_atlas_emission.png", tile_textures[0])
-load_texture("Textures/penguin_atlas_emission.png", tile_textures[1])
-load_texture("Textures/penguin_atlas_diffusion.png", tile_textures[2])
+tile_textures = glGenTextures(17)
+load_texture("Textures/beige_atlas_diffuse.png", tile_textures[0])
+load_texture("Textures/whoa_atlas_specular.png", tile_textures[1])
+load_texture("Textures/penguin_atlas_emission.png", tile_textures[2])
 load_texture("Textures/debug_quad_red.png", tile_textures[3])
 load_texture("Textures/penguin_atlas_specular.png", tile_textures[4])
 load_texture("Textures/penguin_atlas_specular.png", tile_textures[5])
@@ -501,13 +518,14 @@ load_texture("Textures/penguin_atlas_specular.png", tile_textures[12])
 load_texture("Textures/whoa_atlas_diffuse.png", tile_textures[13])
 load_texture("Textures/whoa_atlas_specular.png", tile_textures[14])
 load_texture("Textures/penguin_atlas_emission.png", tile_textures[15])
+load_texture("Textures/cat.png", tile_textures[16])
 
 
 texture_dictionary = {
     "pink": tile_textures[3],
-    "penguin_diffuse": tile_textures[2],
-    "penguin_emission": tile_textures[1],
-    "penguin_specular": tile_textures[4],
+    "penguin_diffuse": tile_textures[0],
+    "penguin_specular": tile_textures[1],
+    "penguin_emission": tile_textures[2],
     "spaceship_diffuse": tile_textures[7],
     "spaceship_specular": tile_textures[8],
     "spaceship_emission": tile_textures[9],
@@ -517,6 +535,7 @@ texture_dictionary = {
     "whoa_diffuse": tile_textures[13],
     "whoa_specular": tile_textures[14],
     "whoa_emission": tile_textures[15],
+    "cat": tile_textures[16],
 }
 
 
@@ -525,8 +544,8 @@ debug_ship_orders = [
 ]
 
 spaceship_parameters = {
-    'number_of_sides': 7,
-    'number_of_segments': 4,
+    'number_of_sides': 8,
+    'number_of_segments': 6,
     'transform_x': 1.0,
     'transform_z': 2.0,
     'scale': 3.3,
@@ -639,6 +658,36 @@ def generate_new_ship():
     ships[0].model = spaceship
 
 
+from GUI import Element, GUI
+
+# test_gui = Element(position=(-.75, -0.75), scale=(0.25, 0.25), texture=texture_dictionary['whoa_diffuse'], atlas_size=2, atlas_coordinate=3)
+
+test_gui = GUI(screen_size=(WIDTH, HEIGHT))
+test_gui.add_element(
+    shader=None,
+    position=(-.75, -0.75),
+    scale=(0.25, 0.25),
+    texture=texture_dictionary['whoa_diffuse'],
+    atlas_size=2,
+    atlas_coordinate=3,
+)
+test_gui.add_element(
+    shader=None,
+    position=(-.75, 0.75),
+    scale=(0.25, 0.25),
+    texture=texture_dictionary['whoa_diffuse'],
+    atlas_size=2,
+    atlas_coordinate=1,
+)
+test_gui.add_button(
+    shader=None,
+    position=(0.75, 0.75),
+    scale=(0.25, 0.25),
+    texture=texture_dictionary['whoa_diffuse'],
+    atlas_size=2,
+    atlas_coordinate=(0, 1),
+    click_function=generate_new_ship,
+)
 
 while not glfw.window_should_close(window):
     glfw.poll_events()
@@ -649,11 +698,19 @@ while not glfw.window_should_close(window):
     view = cam.get_view_matrix()
     glUniformMatrix4fv(view_loc, 1, GL_FALSE, view)
 
+
+
     for mesh in meshes:
         mesh.draw(view=view)
 
     # for shape in shapes:
     #     shape.draw(view=view)
+
+    """Mouse Hover on GUI"""
+    glfw.get_cursor_pos(window)
+    test_gui.button_update(position_mouse=glfw.get_cursor_pos(window), left_click=False, right_click=False)
+
+
 
     """draw new ship"""
     if make_new_ship:
@@ -708,6 +765,11 @@ while not glfw.window_should_close(window):
         window_as_numpy_arr = np.flip(window_as_numpy_arr, 0)
         window_as_PIL_image = Image.fromarray(window_as_numpy_arr)
         images.append(window_as_PIL_image)
+
+    """GUI TESTING"""
+    test_gui.draw()
+    glUseProgram(shader)
+
 
     glfw.swap_buffers(window)
 

@@ -563,7 +563,7 @@ glUniform3fv(glGetUniformLocation(shader, "dir_light.specular"), 1, direction_sp
 tile_textures = glGenTextures(13)
 load_texture("Textures/penguin_atlas_emission.png", tile_textures[0])
 load_texture("Textures/penguin_atlas_emission.png", tile_textures[1])
-load_texture("Textures/penguin_atlas_diffusion.png", tile_textures[2])
+load_texture("Textures/beige_atlas_diffuse.png", tile_textures[2])
 load_texture("Textures/debug_quad_red.png", tile_textures[3])
 load_texture("Textures/penguin_atlas_specular.png", tile_textures[4])
 load_texture("Textures/penguin_atlas_specular.png", tile_textures[5])
