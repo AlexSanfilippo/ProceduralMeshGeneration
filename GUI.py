@@ -28,7 +28,7 @@ goals:
     -[V]Change texture on mouse hover (hover events)
         -send mouse position into draw
             -allow each element to figure itself out
-    -[]activate/deactivate button by clicking other buttons
+    -[V]activate/deactivate button by clicking other buttons
 """
 import math
 import glm
@@ -127,6 +127,8 @@ class GUI:
         self.screen_size = screen_size
         self.elements = []
         self.buttons = []
+        self.context_id_to_status = {}
+        self.context_id_to_element = {}
 
     def add_element(
             self,
@@ -135,19 +137,22 @@ class GUI:
             position=(0.0, 0.0),
             scale=(0.5, 0.5),
             atlas_size=1,
-            atlas_coordinate=0
+            atlas_coordinate=0,
+            context_status=True,
+            context_id='default'
     ):
-        self.elements.append(
-            Element(
-                shader=shader,
-                texture=texture,
-                position=position,
-                scale=scale,
-                screen_size=self.screen_size,
-                atlas_size=atlas_size,
-                atlas_coordinate=atlas_coordinate
-            )
+        element = Element(
+            shader=shader,
+            texture=texture,
+            position=position,
+            scale=scale,
+            screen_size=self.screen_size,
+            atlas_size=atlas_size,
+            atlas_coordinate=atlas_coordinate,
+            context_id=context_id,
         )
+        self.elements.append(element)
+        self.update_context_maps(element=element, status=context_status)
 
     def draw(self):
         for element in self.elements + self.buttons:
@@ -162,27 +167,33 @@ class GUI:
         atlas_size=1,
         atlas_coordinate=(0,),
         click_function=None,
+        context_id='default',
+        context_status=True,
+        **click_function_kwargs,
     ):
-        self.buttons.append(
-            Button(
-                shader=shader,
-                texture=texture,
-                position=position,
-                scale=scale,
-                screen_size=self.screen_size,
-                atlas_size=atlas_size,
-                atlas_coordinate=atlas_coordinate,
-                click_function=click_function
-            )
+        button = Button(
+            shader=shader,
+            texture=texture,
+            position=position,
+            scale=scale,
+            screen_size=self.screen_size,
+            atlas_size=atlas_size,
+            atlas_coordinate=atlas_coordinate,
+            click_function=click_function,
+            context_id=context_id,
+            click_function_kwargs=click_function_kwargs,
         )
+        self.buttons.append(button)
+        self.update_context_maps(element=button, status=context_status)
+
 
     def button_update(self, position_mouse, left_click, right_click):
         """
-        returns list of 0 or 1 for button being clicked
+        tell buttons to check for input (mouse hover or click)
         :param position_mouse:
         :param left_click:
         :param right_click:
-        :return:
+        :return: No Return
         """
         position_mouse_normalized = glm.vec2(
             (
@@ -193,6 +204,36 @@ class GUI:
 
         for button in self.buttons:
             button.update(position_mouse=position_mouse_normalized, left_click=left_click, right_click=right_click)
+
+    def update_context_maps(self, element, status=True):
+        if element.context_id in self.context_id_to_status.keys():
+            self.context_id_to_status[element.context_id] = status
+            self.context_id_to_element[element.context_id].append(element)
+        else:
+            self.context_id_to_status[element.context_id] = status
+            self.context_id_to_element[element.context_id] = [element]
+
+    def build_elements_list(self):
+        self.elements = []
+        self.buttons = []
+        for context_id, status in self.context_id_to_status.items():
+            if status:
+                elements = self.context_id_to_element[context_id]
+                for element in elements:
+                    if type(element) == Element:
+                        self.elements.append(element)
+                    else:
+                        self.buttons.append(element)
+
+    def switch_context_status(self, context_id, status):
+        """
+        turn a context on or off
+        :param context_id: id of the element to turn on/off
+        :param status: which status to switch it to
+        """
+        self.context_id_to_status[context_id] = status
+        self.build_elements_list()
+
 
 
 class Element:
@@ -206,6 +247,7 @@ class Element:
             screen_size=(800, 400),
             atlas_size=1,
             atlas_coordinate=0,
+            context_id='default'
     ):
         if shader == None:
             shader_default = compileProgram(
@@ -228,6 +270,7 @@ class Element:
         self.screen_size = screen_size
         self.atlas_size = atlas_size
         self.atlas_coordinate = atlas_coordinate
+        self.context_id = context_id
         self.vertices = self.generate_vertices()
         self.buffer_setup()
 
@@ -333,7 +376,9 @@ class Button(Element):
         screen_size=(800, 400),
         atlas_size=1,
         atlas_coordinate=(0, 0),
-        click_function=None
+        click_function=None,
+        context_id='default',
+        click_function_kwargs=None,
     ):
         super().__init__(
             shader=shader,
@@ -343,11 +388,13 @@ class Button(Element):
             screen_size=screen_size,
             atlas_size=atlas_size,
             atlas_coordinate=atlas_coordinate[0],
+            context_id=context_id,
         )
         self.generate_bounds()
         self.click_function = click_function
         self.atlas_coordinate_on = atlas_coordinate[0]
         self.atlas_coordinate_off = atlas_coordinate[1]
+        self.click_function_kwargs = click_function_kwargs
     def generate_bounds(self):
         """
         Define vertical and horizontal limits that allow for testing if cursor is
@@ -369,7 +416,6 @@ class Button(Element):
             and position_mouse.x > self.bounds['horizontal_lower'] \
             and position_mouse.y > self.bounds['vertical_lower'] \
             and position_mouse.y < self.bounds['vertical_upper']:
-            print(f'mouse in button! bounds={self.bounds}')
             return True
         else:
             return False
@@ -390,13 +436,15 @@ class Button(Element):
             self.vertices = self.generate_vertices()
             self.buffer_setup()
             if self.check_mouse_click(left_click):
-                print('Mouse Clicked this Button!')
                 if self.click_function:
-                    self.click_function()
+                    if self.click_function_kwargs:
+                        self.click_function(*list(self.click_function_kwargs.values()))
+                    else:
+                        self.click_function()
+
                 else:
                     print("No click function!")
         else:
             self.atlas_coordinate = self.atlas_coordinate_on
             self.vertices = self.generate_vertices()
             self.buffer_setup()
-

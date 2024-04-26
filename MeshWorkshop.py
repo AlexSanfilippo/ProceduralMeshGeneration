@@ -6,17 +6,17 @@ Displaying Proc-Gen Meshes for testing/developement
 -[V]Make this file
 -[V]Add code to generate and draw meshes in a meshes list which is drawn
 -[V]remove code related to ship trading game
--[]fix texture coordinate bug in bevel_cut
+-[V]fix texture coordinate bug in bevel_cut
     -[V]extruded face bug
-    -[]side faces bug
+    -[V]side faces bug
         -requires doing glTexCoord4f(s,t,0,q) instead of glTexCoord2f(s,t)
             -where?
             -where s,t are our texture coords as they are
             -must calculate q
 -[V]Change texture filtering to Nearest
--[]Add UI
-    -[]Display textured quad on screen
-    -[]click textured quad-change quad color or something
+-[V]Add UI
+    -[V]Display textured quad on screen
+    -[V]click textured quad-change quad color or something
 
 """
 import math
@@ -30,7 +30,7 @@ import pyrr
 
 import ProceduralMesh
 from TextureLoader import load_texture
-from Camera import Camera, FollowCamera
+from Camera import Camera, FollowCamera, SimulationCamera
 import math as m
 import random as r
 from random import random
@@ -52,20 +52,22 @@ from pydub.playback import play
 
 images = []
 
-follow_cam = FollowCamera(camera_pos=[6.0, 17.0, 12.0])
+follow_cam = SimulationCamera(camera_pos=[6.0, 247.0, 242.0])
 cam = Camera(camera_pos=[0.0, 20.0, 20.0])
+use_follow_cam = False
+
+
+
 WIDTH, HEIGHT = 1280, 720
 lastX, lastY = WIDTH / 2, HEIGHT / 2
 first_mouse = True
 left, right, forward, backward, make_new_surface = False, False, False, False, False
 player_left, player_right, player_forward, player_backward = False, False, False, False
-camera_mode = 0 #1 for follow, 0 for fly
-cycle_camera_mode = False
 yaw_counterclockwise, yaw_clockwise = False, False
 write_to_gif = False
 make_new_ship = False
 pause = False
-cycle_ship_texture = 0
+ship_texture_cycle_id = 0
 
 
 """Text MENU TESTING"""
@@ -73,8 +75,8 @@ my_menu = Menu()
 # the keyboard input callback
 def key_input_clb(window, key, scancode, action, mode):
     global left, right, forward, backward, make_new_surface, player_left, player_right, player_forward, \
-        player_backward, cycle_camera_mode, yaw_counterclockwise, yaw_clockwise, write_to_gif, make_new_ship,\
-        pause, cycle_ship_texture
+        player_backward, yaw_counterclockwise, yaw_clockwise, write_to_gif, make_new_ship,\
+        pause, ship_texture_cycle_id
 
     if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
         glfw.set_window_should_close(window, True)
@@ -94,6 +96,14 @@ def key_input_clb(window, key, scancode, action, mode):
         right = True
     elif key == glfw.KEY_D and action == glfw.RELEASE:
         right = False
+    if key == glfw.KEY_Q and action == glfw.PRESS:
+        yaw_clockwise = True
+    elif key == glfw.KEY_Q and action == glfw.RELEASE:
+        yaw_clockwise = False
+    if key == glfw.KEY_E and action == glfw.PRESS:
+        yaw_counterclockwise = True
+    elif key == glfw.KEY_E and action == glfw.RELEASE:
+        yaw_counterclockwise = False
     if key == glfw.KEY_1 and action == glfw.PRESS:
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
     if key == glfw.KEY_2 and action == glfw.PRESS:
@@ -105,26 +115,34 @@ def key_input_clb(window, key, scancode, action, mode):
     if key == glfw.KEY_P and action == glfw.PRESS:
         pause = not pause
     if key == glfw.KEY_T and action == glfw.PRESS:
-        if cycle_ship_texture < 2:
-            cycle_ship_texture += 1
-        else:
-            cycle_ship_texture = 0
-        # if spaceship_parameters['diffuse'] == texture_dictionary['spaceship_diffuse']:
-        if cycle_ship_texture == 0:
-            spaceship_parameters['diffuse'] = texture_dictionary['penguin_diffuse']
-            spaceship_parameters['specular'] = texture_dictionary['penguin_specular']
-            spaceship_parameters['emission'] = texture_dictionary['penguin_emission']
-            update_spaceship_texture()
-        elif cycle_ship_texture == 1:
-            spaceship_parameters['diffuse'] = texture_dictionary['atlas_debug_diffuse']
-            spaceship_parameters['specular'] = texture_dictionary['atlas_debug_specular']
-            spaceship_parameters['emission'] = texture_dictionary['atlas_debug_emission']
-            update_spaceship_texture()
-        elif cycle_ship_texture == 2:
-            spaceship_parameters['diffuse'] = texture_dictionary['whoa_diffuse']
-            spaceship_parameters['specular'] = texture_dictionary['whoa_specular']
-            spaceship_parameters['emission'] = texture_dictionary['atlas_debug_emission']
-            update_spaceship_texture()
+        cycle_ship_texture()
+    if key == glfw.KEY_V and action == glfw.PRESS:
+        switch_camera_mode()
+
+
+def cycle_ship_texture():
+    global ship_texture_cycle_id
+    if ship_texture_cycle_id < 2:
+        ship_texture_cycle_id += 1
+    else:
+        ship_texture_cycle_id = 0
+    # if spaceship_parameters['diffuse'] == texture_dictionary['spaceship_diffuse']:
+    if ship_texture_cycle_id == 0:
+        spaceship_parameters['diffuse'] = texture_dictionary['penguin_diffuse']
+        spaceship_parameters['specular'] = texture_dictionary['penguin_specular']
+        spaceship_parameters['emission'] = texture_dictionary['penguin_emission']
+        update_spaceship_texture()
+    elif ship_texture_cycle_id == 1:
+        spaceship_parameters['diffuse'] = texture_dictionary['atlas_debug_diffuse']
+        spaceship_parameters['specular'] = texture_dictionary['atlas_debug_specular']
+        spaceship_parameters['emission'] = texture_dictionary['atlas_debug_emission']
+        update_spaceship_texture()
+    elif ship_texture_cycle_id == 2:
+        spaceship_parameters['diffuse'] = texture_dictionary['whoa_diffuse']
+        spaceship_parameters['specular'] = texture_dictionary['whoa_specular']
+        spaceship_parameters['emission'] = texture_dictionary['atlas_debug_emission']
+        update_spaceship_texture()
+
 
 def mouse_button_callback(window, button, action, mods):
     global make_new_ship
@@ -132,7 +150,6 @@ def mouse_button_callback(window, button, action, mods):
     right_click = button == glfw.MOUSE_BUTTON_RIGHT and action == glfw.PRESS
     if button == left_click:
        mpos = glfw.get_cursor_pos(window)
-       print("Cursor Position at (", mpos[0], " : ", mpos[1])
     test_gui.button_update(position_mouse=glfw.get_cursor_pos(window), left_click=left_click, right_click=right_click)
 
 def update_spaceship_texture():
@@ -148,13 +165,13 @@ def do_movement(speed=1.0):
     :return:
     """
     if left:
-        cam.process_keyboard("LEFT", 0.05*speed)
+        active_camera.process_keyboard("LEFT", 0.05*speed)
     if right:
-        cam.process_keyboard("RIGHT", 0.05*speed)
+        active_camera.process_keyboard("RIGHT", 0.05*speed)
     if forward:
-        cam.process_keyboard("FORWARD", 0.05*speed)
+        active_camera.process_keyboard("FORWARD", 0.05*speed)
     if backward:
-        cam.process_keyboard("BACKWARD", 0.05*speed)
+        active_camera.process_keyboard("BACKWARD", 0.05*speed)
     if yaw_clockwise:
         follow_cam.process_keyboard("YAW_CLOCKWISE", 0.05)
     if yaw_counterclockwise:
@@ -412,10 +429,21 @@ glfw.set_scroll_callback(window, scroll_callback)
 glfw.set_mouse_button_callback(window, mouse_button_callback)
 # capture the mouse cursor
 # glfw.set_input_mode(window, glfw.CURSOR, glfw.CURSOR_DISABLED)
-glfw.set_input_mode(window, glfw.CURSOR, glfw.CURSOR_CAPTURED)
+# glfw.set_input_mode(window, glfw.CURSOR, glfw.CURSOR_CAPTURED)
 
 # make the context current
 glfw.make_context_current(window)
+
+def switch_camera_mode():
+    global use_follow_cam, active_camera
+    use_follow_cam = not use_follow_cam
+    if use_follow_cam:
+        glfw.set_input_mode(window, glfw.CURSOR, glfw.CURSOR_NORMAL) #glfw.CURSOR_CAPTURED,
+        active_camera = follow_cam
+    else:
+        glfw.set_input_mode(window, glfw.CURSOR, glfw.CURSOR_DISABLED)
+        active_camera = cam
+switch_camera_mode()
 
 shader = compileProgram(compileShader(vertex_src, GL_VERTEX_SHADER), compileShader(fragment_src, GL_FRAGMENT_SHADER))
 
@@ -544,8 +572,8 @@ debug_ship_orders = [
 ]
 
 spaceship_parameters = {
-    'number_of_sides': 8,
-    'number_of_segments': 6,
+    'number_of_sides': 6,
+    'number_of_segments': 5,
     'transform_x': 1.0,
     'transform_z': 2.0,
     'scale': 3.3,
@@ -669,7 +697,7 @@ test_gui.add_element(
     scale=(0.25, 0.25),
     texture=texture_dictionary['whoa_diffuse'],
     atlas_size=2,
-    atlas_coordinate=3,
+    atlas_coordinate=0,
 )
 test_gui.add_element(
     shader=None,
@@ -677,7 +705,8 @@ test_gui.add_element(
     scale=(0.25, 0.25),
     texture=texture_dictionary['whoa_diffuse'],
     atlas_size=2,
-    atlas_coordinate=1,
+    atlas_coordinate=3,
+    context_id='button'
 )
 test_gui.add_button(
     shader=None,
@@ -687,15 +716,58 @@ test_gui.add_button(
     atlas_size=2,
     atlas_coordinate=(0, 1),
     click_function=generate_new_ship,
+    context_id='button',
+    context_status=False,
 )
+test_gui.add_button(
+    shader=None,
+    position=(0.75, 0.0),
+    scale=(0.25, 0.25),
+    texture=texture_dictionary['whoa_diffuse'],
+    atlas_size=2,
+    atlas_coordinate=(0, 1),
+    click_function=cycle_ship_texture,
+    context_id='button',
+    context_status=False,
+)
+test_gui.add_button(
+    shader=None,
+    position=(0.75, 0.25),
+    scale=(0.15, 0.15),
+    texture=texture_dictionary['whoa_diffuse'],
+    atlas_size=2,
+    atlas_coordinate=(2, 3),
+    click_function=test_gui.switch_context_status,
+    context_id='button',
+    context_status=False,
+    click_function_context_id='button',
+    click_function_status_status=False,
+)
+test_gui.add_button(
+    shader=None,
+    position=(0.25, 0.75),
+    scale=(0.15, 0.15),
+    texture=texture_dictionary['whoa_diffuse'],
+    atlas_size=2,
+    atlas_coordinate=(0, 1),
+    click_function=test_gui.switch_context_status,
+    context_id='context_on',
+    context_status=True,
+    click_function_context_id='button',
+    click_function_status_status=True,
+
+)
+test_gui.build_elements_list()
+
+
 
 while not glfw.window_should_close(window):
     glfw.poll_events()
-    do_movement(speed=10)
+    do_movement(speed=100)
     my_fps.update()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-    view = cam.get_view_matrix()
+    view = active_camera.get_view_matrix()
     glUniformMatrix4fv(view_loc, 1, GL_FALSE, view)
 
 
@@ -707,8 +779,8 @@ while not glfw.window_should_close(window):
     #     shape.draw(view=view)
 
     """Mouse Hover on GUI"""
-    glfw.get_cursor_pos(window)
-    test_gui.button_update(position_mouse=glfw.get_cursor_pos(window), left_click=False, right_click=False)
+    if use_follow_cam:
+        test_gui.button_update(position_mouse=glfw.get_cursor_pos(window), left_click=False, right_click=False)
 
 
 
@@ -728,7 +800,7 @@ while not glfw.window_should_close(window):
     glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection)
 
     # pass cam position for specular light
-    glUniform3fv(view_pos_loc, 1, list(cam.camera_pos))
+    glUniform3fv(view_pos_loc, 1, list(active_camera.camera_pos))
     point_light_position_loc = glGetUniformLocation(shader, "point_light.position")
     glUniform1f(glGetUniformLocation(shader, "material.shininess"), 4.0)
     glUniform3fv(glGetUniformLocation(shader, "point_lights[0].position"), 1, debug_plcs[0].get_pos())
@@ -749,8 +821,8 @@ while not glfw.window_should_close(window):
     glUniform1f(glGetUniformLocation(shader, "point_lights[1].quadratic"), debug_plcs[1].get_quadratic())
 
     # spotlight
-    glUniform3fv(glGetUniformLocation(shader, "spot_light.position"), 1, list(cam.camera_pos))
-    glUniform3fv(glGetUniformLocation(shader, "spot_light.direction"), 1, list(cam.camera_front))
+    glUniform3fv(glGetUniformLocation(shader, "spot_light.position"), 1, list(active_camera.camera_pos))
+    glUniform3fv(glGetUniformLocation(shader, "spot_light.direction"), 1, list(active_camera.camera_front))
     glUniform3fv(glGetUniformLocation(shader, "spot_light.diffuse"), 1, [0.0]*3)
     glUniform3fv(glGetUniformLocation(shader, "spot_light.ambient"), 1, [0.0]*3)
     glUniform3fv(glGetUniformLocation(shader, "spot_light.specular"), 1, [0.0]*3)

@@ -3,6 +3,7 @@ from pyrr import Vector3, vector, vector3, matrix44
 from math import sin, cos, radians, atan2, sqrt
 import glm as glm
 from glm import vec3
+from SimplePhysics import find_intersection_ray_plane
 
 class Camera:
     def __init__(self, camera_pos=[0.0, 0.0, 1.20], yaw=0, pitch=0):
@@ -163,9 +164,10 @@ class FollowCamera(Camera):
         self.update_camera_vectors()
 
     def process_mouse_scroll(self, xoffset, yoffset):
+        zoom_speed = 10.0
         front = glm.normalize(self.target_position - self.camera_pos)
         updated_camera_pos = glm.vec3(self.camera_pos)
-        updated_camera_pos += front * yoffset
+        updated_camera_pos += front * yoffset * zoom_speed
         minimum_distance_camera_target = 1.0
         if glm.distance(self.target_position, updated_camera_pos) > minimum_distance_camera_target:
             self.camera_pos = updated_camera_pos
@@ -193,3 +195,49 @@ class FollowCamera(Camera):
         #         self.pitch = -90
         #
         # self.update_camera_vectors()
+
+class SimulationCamera(FollowCamera):
+    """
+    Camera mode as seen in games likes banished, cities skylines, etc
+    target to 'follow' (rotate,zoom around) is based on camera position and forward vector
+    """
+
+    def calculate_target(self):
+        self.target_position = find_intersection_ray_plane(
+            ray_origin=self.camera_pos,
+            ray_direction=self.camera_front,
+            plane=glm.vec4(0.0, 1.0, 0.0, 0.0)
+        )
+
+    def process_keyboard(self, direction, velocity):
+        sim_front = vec3(self.camera_front.x, 0.0, self.camera_front.z)
+        if direction == "FORWARD":
+            self.camera_pos += sim_front * velocity
+            self.calculate_target()
+        if direction == "BACKWARD":
+            self.camera_pos += -sim_front * velocity
+            self.calculate_target()
+        if direction == "LEFT":
+            self.camera_pos += -self.camera_right * velocity
+            self.calculate_target()
+        if direction == "RIGHT":
+            self.camera_pos += self.camera_right * velocity
+            self.calculate_target()
+        if direction == "YAW_CLOCKWISE":
+            pos_from_center = self.camera_pos - self.target_position
+            self.angle += 0.035
+            distance_from_origin = sqrt(pow(pos_from_center.x,2) + pow(pos_from_center.z,2))
+            pos_from_center.z = sin(self.angle)*distance_from_origin
+            pos_from_center.x = cos(self.angle)*distance_from_origin
+            self.camera_pos = pos_from_center + self.target_position
+            self.update_camera_vectors()
+            self.offset = self.calculate_offset()
+        if direction == "YAW_COUNTERCLOCKWISE":
+            pos_from_center = self.camera_pos - self.target_position
+            self.angle -= 0.035
+            distance_from_origin = sqrt(pow(pos_from_center.x, 2) + pow(pos_from_center.z, 2))
+            pos_from_center.z = sin(self.angle) * distance_from_origin
+            pos_from_center.x = cos(self.angle) * distance_from_origin
+            self.camera_pos = pos_from_center + self.target_position
+            self.update_camera_vectors()
+            self.offset = self.calculate_offset()
