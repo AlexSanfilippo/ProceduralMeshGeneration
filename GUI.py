@@ -271,6 +271,7 @@ class Element:
         self.atlas_size = atlas_size
         self.atlas_coordinate = atlas_coordinate
         self.context_id = context_id
+        self.vertices_count = 4
         self.vertices = self.generate_vertices()
         self.buffer_setup()
 
@@ -303,10 +304,10 @@ class Element:
         glBufferData(GL_ARRAY_BUFFER, self.vertices.nbytes, self.vertices, GL_STATIC_DRAW)
 
         # quad position vertices (vertex attribute)
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, self.vertices.itemsize * 4, ctypes.c_void_p(0))
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, self.vertices.itemsize * self.vertices_count, ctypes.c_void_p(0))
         glEnableVertexAttribArray(0)
         # quad texture coords
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, self.vertices.itemsize * 4, ctypes.c_void_p(8))
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, self.vertices.itemsize * self.vertices_count, ctypes.c_void_p(8))
         glEnableVertexAttribArray(1)
 
         self.model_loc = glGetUniformLocation(self.shader, "model")
@@ -328,7 +329,8 @@ class Element:
 
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, self.vertices_count)
+        # glDrawArrays(GL_TRIANGLES, 0, self.vertices_count)
 
     def get_texture_coordinates_atlas(self):
         texture_coordinates = [
@@ -448,3 +450,205 @@ class Button(Element):
             self.atlas_coordinate = self.atlas_coordinate_on
             self.vertices = self.generate_vertices()
             self.buffer_setup()
+
+
+class Character(Element):
+    """
+    Render a single quad with a given character
+    """
+
+    def __init__(
+        self,
+        shader=None,
+        texture=None,
+        position=(0.0, 0.0),
+        scale=(0.5, 0.5),
+        screen_size=(800, 400),
+        context_id='default',
+        text=None,
+        font_size=1,
+    ):
+
+        if shader == None:
+            shader_default = compileProgram(
+                compileShader(vertex_src, GL_VERTEX_SHADER),
+                compileShader(fragment_src, GL_FRAGMENT_SHADER)
+            )
+            self.shader = shader_default
+
+        else:
+            self.shader = shader
+        if texture == None:
+            gui_textures = glGenTextures(2)
+            load_texture("Textures/debug_diffuse_coordinates.png", gui_textures[0])
+            self.texture = gui_textures[0]
+        else:
+            self.texture = texture
+        self.position = glm.vec2(position)
+        self.scale = scale
+        self.screen_size = screen_size
+        self.screen_size = screen_size
+        self.context_id = context_id
+        self.text = text
+        self.font_size = font_size
+        self.vertices_count = 4
+        self.characters = self.get_characters()
+        self.vertices = self.generate_vertices()
+        self.buffer_setup()
+
+    def get_characters(self):
+        file_font = open('C://Users//LENOVO//PycharmProjects//ProceduralMeshGeneration//Fonts//my_font.fnt', 'r')
+        characters = dict()
+        line_count = 0
+        for line in file_font:
+            line = line[:-1]
+            if line_count < 4:
+                line_count += 1
+                continue
+            else:
+                line_as_list = line.split()
+                line_type = line_as_list[0]
+                line_values = line_as_list[1:]
+                if line_type == 'kerning':
+                    break
+                character_values = dict()
+                for pair in line_values[1:]:
+                    pair = pair.split(sep='=')
+                    character_values[pair[0]] = int(pair[1])
+                char_id = line_values[0].split(sep='=')[1]
+                characters[chr(int(char_id))] = character_values
+        return characters
+
+    def generate_vertices(self):
+
+        char_info = self.characters[self.text]
+        width = char_info['width']/512
+        height = char_info['height']/512
+        text_coords_upper_left = glm.vec2(char_info['x'], 1.0 - char_info['y'])/512
+        text_coords_upper_right = glm.vec2(text_coords_upper_left.x + width, text_coords_upper_left.y)
+        text_coords_lower_right = glm.vec2(text_coords_upper_left.x + width, text_coords_upper_left.y - height)
+        text_coords_lower_left = glm.vec2(text_coords_upper_left.x, text_coords_upper_left.y - height)
+        text_coords = [text_coords_upper_left, text_coords_lower_left, text_coords_upper_right, text_coords_lower_right]
+
+        #OpenGL Screen Coordinates go from -1,-1 (lower left) to 1,1 (upper right)
+        return np.array(
+            [
+                # upper left
+                -1.0 * width * self.font_size + self.position[0], 1.0 * height * self.font_size + self.position[1], text_coords[0].x, text_coords[0].y,
+                # lower left
+                -1.0 * width * self.font_size + self.position[0], -1.0 * height * self.font_size + self.position[1], text_coords[1].x, text_coords[1].y,
+                #upper right
+                1.0 * width * self.font_size + self.position[0], 1.0 * height * self.font_size + self.position[1], text_coords[2].x,   text_coords[2].y,
+                #lower right
+                1.0 * width * self.font_size + self.position[0], -1.0 * height * self.font_size + self.position[1], text_coords[3].x,  text_coords[3].y,
+            ],
+            dtype=np.float32
+        )
+class TextBox(Character):
+    """
+    Much like Character, except takes a whole string and produces multiple quads
+    """
+
+    def generate_vertices(self):
+        vertices = []
+
+        for char in self.text:
+            char_info = self.characters[char]
+            width = char_info['width'] / 512
+            height = char_info['height'] / 512
+            x_offset = char_info['xoffset'] / 512
+            y_offset = char_info['yoffset'] / 512
+            x_advance = char_info['xadvance'] / 512
+            text_coords_upper_left = glm.vec2(char_info['x'], 1.0 - char_info['y']) / 512
+            text_coords_upper_right = glm.vec2(text_coords_upper_left.x + width, text_coords_upper_left.y)
+            text_coords_lower_right = glm.vec2(text_coords_upper_left.x + width, text_coords_upper_left.y - height)
+            text_coords_lower_left = glm.vec2(text_coords_upper_left.x, text_coords_upper_left.y - height)
+            text_coords = [text_coords_upper_left, text_coords_lower_left, text_coords_upper_right, text_coords_lower_right]
+
+            #
+            # positions = []
+            # upper_left = [-1.0 * self.font_size * (self.position[0] + x_offset), self.font_size * (self.position[1] + height + y_offset)]
+            # lower_left = [-1.0 * self.font_size * (self.position[0] + x_offset), -1.0 * self.font_size * (self.position[1] + y_offset)]
+            # upper_right = [self.font_size * (self.position[0] + width + x_offset), self.font_size * (self.position[1] + height + y_offset)]
+            # lower_right = [self.font_size * (self.position[0] + width + x_offset), -1.0 * self.font_size * (self.position[1] + y_offset)]
+            # upper_left = [-1,
+            #               1.0]
+            # lower_left = [-1,
+            #               -1]
+            # upper_right = [1.0,
+            #                1.0]
+            # lower_right = [1,
+            #                -1.0]
+            # positions = upper_left + lower_left + upper_right + lower_right + upper_right + lower_left
+            # vertices += positions
+            vertices += [
+                    # upper left
+                    -1.0 * width * self.font_size + self.position[0] + x_offset, 1.0 * height * self.font_size + self.position[1] - y_offset,
+                    text_coords[0].x, text_coords[0].y,
+                    # lower left
+                    -1.0 * width * self.font_size + self.position[0] + x_offset, -1.0 * height * self.font_size + self.position[1] - y_offset,
+                    text_coords[1].x, text_coords[1].y,
+                    # upper right
+                    1.0 * width * self.font_size + self.position[0] + x_offset, 1.0 * height * self.font_size + self.position[1] - y_offset,
+                    text_coords[2].x, text_coords[2].y,
+                    # lower right
+                    1.0 * width * self.font_size + self.position[0] + x_offset, -1.0 * height * self.font_size + self.position[1] - y_offset,
+                    text_coords[3].x, text_coords[3].y,
+                    # upper right
+                    1.0 * width * self.font_size + self.position[0] + x_offset, 1.0 * height * self.font_size + self.position[1] - y_offset,
+                    text_coords[2].x, text_coords[2].y,
+                    # lower left
+                    -1.0 * width * self.font_size + self.position[0] + x_offset, -1.0 * height * self.font_size + self.position[1] - y_offset,
+                    text_coords[1].x, text_coords[1].y,
+                ]
+            # height *= 2
+            # width *= 2
+            # y_offset *= 1
+            # x_offset *= 2
+            # vertices += [
+            #         # upper left
+            #         -1.0 * self.font_size + self.position[0] + x_offset, 1.0 * self.font_size + self.position[1] - y_offset + height,
+            #         text_coords[0].x, text_coords[0].y,
+            #         # lower left
+            #         -1.0 * self.font_size + self.position[0] + x_offset, -1.0 * self.font_size + self.position[1] - y_offset,
+            #         text_coords[1].x, text_coords[1].y,
+            #         # upper right
+            #         1.0 * self.font_size + self.position[0] + x_offset + width, 1.0 * self.font_size + self.position[1] - y_offset + height,
+            #         text_coords[2].x, text_coords[2].y,
+            #         # lower right
+            #         1.0 * self.font_size + self.position[0] + x_offset + width, -1.0 * self.font_size + self.position[1] - y_offset,
+            #         text_coords[3].x, text_coords[3].y,
+            #         # upper right
+            #         1.0 * self.font_size + self.position[0] + x_offset + width, 1.0 * self.font_size + self.position[1] - y_offset + height,
+            #         text_coords[2].x, text_coords[2].y,
+            #         # lower left
+            #         -1.0 * self.font_size + self.position[0] + x_offset, -1.0 * self.font_size + self.position[1] - y_offset,
+            #         text_coords[1].x, text_coords[1].y,
+            #     ]
+            self.position[0] += x_advance
+            self.vertices_count += 0
+        return np.array(
+            vertices,
+            dtype=np.float32
+        )
+
+    def draw(self):
+        glUseProgram(self.shader)
+        glBindVertexArray(self.VAO)
+
+        glActiveTexture(GL_TEXTURE0)
+        glBindTexture(GL_TEXTURE_2D, self.texture)
+
+        # rotate, translate, and scale
+        # model = glm.mat4(1.0)
+        # model = glm.translate(model, self.position)
+        # todo: this rotation smells fishy
+        # model = glm.rotate(model, self.rotation_magnitude.x, self.rotation_axis)
+        # model = glm.scale(model, self.scale)
+        # glUniformMatrix4fv(self.model_loc, 1, GL_FALSE, glm.value_ptr(model))
+
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        # glDrawArrays(GL_TRIANGLE_STRIP, 0, self.vertices_count)
+        # glDrawArrays(GL_TRIANGLES, 0, self.vertices_count)
+        glDrawArrays(GL_TRIANGLES, 0, int(len(self.vertices) / 3))

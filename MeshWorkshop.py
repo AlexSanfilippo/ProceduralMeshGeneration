@@ -64,6 +64,7 @@ first_mouse = True
 left, right, forward, backward, make_new_surface = False, False, False, False, False
 player_left, player_right, player_forward, player_backward = False, False, False, False
 yaw_counterclockwise, yaw_clockwise = False, False
+up, down = False, False
 write_to_gif = False
 make_new_ship = False
 pause = False
@@ -76,7 +77,7 @@ my_menu = Menu()
 def key_input_clb(window, key, scancode, action, mode):
     global left, right, forward, backward, make_new_surface, player_left, player_right, player_forward, \
         player_backward, yaw_counterclockwise, yaw_clockwise, write_to_gif, make_new_ship,\
-        pause, ship_texture_cycle_id
+        pause, ship_texture_cycle_id, up, down
 
     if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
         glfw.set_window_should_close(window, True)
@@ -104,6 +105,15 @@ def key_input_clb(window, key, scancode, action, mode):
         yaw_counterclockwise = True
     elif key == glfw.KEY_E and action == glfw.RELEASE:
         yaw_counterclockwise = False
+    if key == glfw.KEY_TAB and action == glfw.PRESS:
+        up = True
+    elif key == glfw.KEY_TAB and action == glfw.RELEASE:
+        up = False
+    if key == glfw.KEY_LEFT_SHIFT and action == glfw.PRESS:
+        down = True
+    elif key == glfw.KEY_LEFT_SHIFT and action == glfw.RELEASE:
+        down = False
+
     if key == glfw.KEY_1 and action == glfw.PRESS:
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
     if key == glfw.KEY_2 and action == glfw.PRESS:
@@ -176,6 +186,12 @@ def do_movement(speed=1.0):
         follow_cam.process_keyboard("YAW_CLOCKWISE", 0.05)
     if yaw_counterclockwise:
         follow_cam.process_keyboard("YAW_COUNTERCLOCKWISE", 0.05)
+    if up:
+        active_camera.process_keyboard("UP", 0.05)
+    if down:
+        active_camera.process_keyboard("DOWN", 0.05)
+
+
 
 
 def mouse_look_clb(window, xpos, ypos):
@@ -546,7 +562,7 @@ load_texture("Textures/penguin_atlas_specular.png", tile_textures[12])
 load_texture("Textures/whoa_atlas_diffuse.png", tile_textures[13])
 load_texture("Textures/whoa_atlas_specular.png", tile_textures[14])
 load_texture("Textures/penguin_atlas_emission.png", tile_textures[15])
-load_texture("Textures/cat.png", tile_textures[16])
+load_texture("Fonts/my_font.png", tile_textures[16])
 
 
 texture_dictionary = {
@@ -563,7 +579,7 @@ texture_dictionary = {
     "whoa_diffuse": tile_textures[13],
     "whoa_specular": tile_textures[14],
     "whoa_emission": tile_textures[15],
-    "cat": tile_textures[16],
+    "font_atlas": tile_textures[16],
 }
 
 
@@ -686,7 +702,7 @@ def generate_new_ship():
     ships[0].model = spaceship
 
 
-from GUI import Element, GUI
+from GUI import Element, GUI, Character, TextBox
 
 # test_gui = Element(position=(-.75, -0.75), scale=(0.25, 0.25), texture=texture_dictionary['whoa_diffuse'], atlas_size=2, atlas_coordinate=3)
 
@@ -760,6 +776,18 @@ test_gui.add_button(
 test_gui.build_elements_list()
 
 
+"""Text Rendering"""
+test_char = TextBox(
+    shader=None,
+    texture=texture_dictionary['font_atlas'],
+    position=(-1.0, 0.5),
+    scale=(0.5, 0.5),
+    screen_size=(WIDTH, HEIGHT),
+    context_id='default',
+    text='Hello, World!',
+    font_size=.5
+)
+
 
 while not glfw.window_should_close(window):
     glfw.poll_events()
@@ -774,6 +802,10 @@ while not glfw.window_should_close(window):
 
     for mesh in meshes:
         mesh.draw(view=view)
+
+    """Text Rendering"""
+    test_char.draw()
+
 
     # for shape in shapes:
     #     shape.draw(view=view)

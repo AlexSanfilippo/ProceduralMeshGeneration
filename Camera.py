@@ -58,6 +58,12 @@ class Camera:
         if direction == "PITCH_POS":
             self.pitch += velocity
             self.update_camera_vectors()
+        if direction == "DOWN":
+            self.camera_pos = list(vec3(self.camera_pos) - vec3(0.0, 1.5, 0.0))
+            self.update_camera_vectors()
+        if direction == "UP":
+            self.camera_pos = list(vec3(self.camera_pos) + vec3(0.0, 1.5, 0.0))
+            self.update_camera_vectors()
 
     def inherit_from_camera(self, other_camera):
         self.camera_pos = Vector3(other_camera.camera_pos)
@@ -241,3 +247,11 @@ class SimulationCamera(FollowCamera):
             self.camera_pos = pos_from_center + self.target_position
             self.update_camera_vectors()
             self.offset = self.calculate_offset()
+        if direction == "DOWN":
+            self.camera_pos -= vec3(0.0, 1.5, 0.0)
+            self.update_camera_vectors()
+        if direction == "UP":
+            self.camera_pos += vec3(0.0, 1.5, 0.0)
+            self.update_camera_vectors()
+
+

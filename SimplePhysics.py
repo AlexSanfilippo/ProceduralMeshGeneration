@@ -8,7 +8,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 logging.basicConfig()
-logging.root.setLevel(logging.NOTSET)
+# logging.root.setLevel(logging.NOTSET)
 
 #Ray-plane intersection
 
