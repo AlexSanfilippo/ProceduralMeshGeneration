@@ -59,12 +59,13 @@ fragment_src = """
 in vec2 texture_coordinates;
 out vec4 fragment_color;
 uniform sampler2D gui_texture;
+uniform vec4 color;
 
 void main()
 {    
     
-    //fragment_color = vec4(0.0, 0.7, 0.7, 0.5f);
-    fragment_color = texture(gui_texture, texture_coordinates);
+    //fragment_color = vec4(0.7, 0.1, 0.5, 0.5f);
+    fragment_color = color * texture(gui_texture, texture_coordinates);
 }
 """
 
@@ -247,7 +248,8 @@ class Element:
             screen_size=(800, 400),
             atlas_size=1,
             atlas_coordinate=0,
-            context_id='default'
+            context_id='default',
+            color=glm.vec4(1.0, 1.0, 1.0, 1.0),
     ):
         if shader == None:
             shader_default = compileProgram(
@@ -271,9 +273,11 @@ class Element:
         self.atlas_size = atlas_size
         self.atlas_coordinate = atlas_coordinate
         self.context_id = context_id
+        self.color = color
         self.vertices_count = 4
         self.vertices = self.generate_vertices()
         self.buffer_setup()
+        self.text_box = None
 
     def generate_vertices(self):
 
@@ -311,6 +315,7 @@ class Element:
         glEnableVertexAttribArray(1)
 
         self.model_loc = glGetUniformLocation(self.shader, "model")
+        self.color_loc = glGetUniformLocation(self.shader, "color")
 
     def draw(self):
         glUseProgram(self.shader)
@@ -326,11 +331,16 @@ class Element:
         # model = glm.rotate(model, self.rotation_magnitude.x, self.rotation_axis)
         # model = glm.scale(model, self.scale)
         # glUniformMatrix4fv(self.model_loc, 1, GL_FALSE, glm.value_ptr(model))
+        glUniform4fv(self.color_loc, 1, glm.value_ptr(self.color))
 
         glEnable(GL_BLEND)
+        glDisable(GL_DEPTH_TEST)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         glDrawArrays(GL_TRIANGLE_STRIP, 0, self.vertices_count)
-        # glDrawArrays(GL_TRIANGLES, 0, self.vertices_count)
+        glDisable(GL_BLEND)
+        glEnable(GL_DEPTH_TEST)
+        if self.text_box:
+            self.text_box.draw()
 
     def get_texture_coordinates_atlas(self):
         texture_coordinates = [
@@ -363,6 +373,18 @@ class Element:
                 + text_coord[1] \
                 * subtexture_magnitude
         return texture_coordinates
+
+    def add_text_box(self, texture, text="DEFAULT TEXT", color=(1.0, 1.0, 1.0, 1.0), font_size=1.0, width=0.9):
+        self.text_box = TextBox(
+            texture=texture,
+            position=(self.position.x - self.scale[0]*0.9, self.position.y + self.scale[1]*0.9),
+            screen_size=self.screen_size,
+            context_id=self.context_id,
+            text=text,
+            font_size=font_size,
+            width=self.scale[0]*2*width,
+            color=glm.vec4(color)
+            )
 
 class Button(Element):
     """
@@ -466,8 +488,22 @@ class Character(Element):
         screen_size=(800, 400),
         context_id='default',
         text=None,
-        font_size=1,
+        font_size=1.0,
+        width=1.0,
+        color=(1.0, 1.0, 1.0, 1.0),
     ):
+        """
+
+        :param shader:
+        :param texture:
+        :param position:
+        :param scale: Not used here, but leftover from Element
+        :param screen_size: Pixel Width, Height of screen
+        :param context_id: For opening/closing GUI contexts
+        :param text: The text to display
+        :param font_size: Functions as multiplier.
+        :param width: Width as fraction of screen [0.0, 1.0]
+        """
 
         if shader == None:
             shader_default = compileProgram(
@@ -492,7 +528,10 @@ class Character(Element):
         self.text = text
         self.font_size = font_size
         self.vertices_count = 4
+        self.color = glm.vec4(color)
         self.characters = self.get_characters()
+        self.width = width
+        self.right_box_limit = self.position.x + width
         self.vertices = self.generate_vertices()
         self.buffer_setup()
 
@@ -547,85 +586,53 @@ class Character(Element):
 class TextBox(Character):
     """
     Much like Character, except takes a whole string and produces multiple quads
+    -Uses OpenGL screen Coordinates, ie (-1,-1) in South West, (1,1) in North East
+        -so a width of 2.0 would have text box cover whole screen
+
     """
 
     def generate_vertices(self):
         vertices = []
+        self.box_left = self.position[0]
 
         for char in self.text:
             char_info = self.characters[char]
-            width = char_info['width'] / 512
-            height = char_info['height'] / 512
-            x_offset = char_info['xoffset'] / 512
-            y_offset = char_info['yoffset'] / 512
-            x_advance = char_info['xadvance'] / 512
+            width = (char_info['width'] / 512)
+            height = (char_info['height'] / 512)
+            x_offset = (char_info['xoffset'] / 512)
+            y_offset = (char_info['yoffset'] / 512)
+            x_advance = (char_info['xadvance'] / 512)
             text_coords_upper_left = glm.vec2(char_info['x'], 1.0 - char_info['y']) / 512
             text_coords_upper_right = glm.vec2(text_coords_upper_left.x + width, text_coords_upper_left.y)
             text_coords_lower_right = glm.vec2(text_coords_upper_left.x + width, text_coords_upper_left.y - height)
             text_coords_lower_left = glm.vec2(text_coords_upper_left.x, text_coords_upper_left.y - height)
             text_coords = [text_coords_upper_left, text_coords_lower_left, text_coords_upper_right, text_coords_lower_right]
 
-            #
-            # positions = []
-            # upper_left = [-1.0 * self.font_size * (self.position[0] + x_offset), self.font_size * (self.position[1] + height + y_offset)]
-            # lower_left = [-1.0 * self.font_size * (self.position[0] + x_offset), -1.0 * self.font_size * (self.position[1] + y_offset)]
-            # upper_right = [self.font_size * (self.position[0] + width + x_offset), self.font_size * (self.position[1] + height + y_offset)]
-            # lower_right = [self.font_size * (self.position[0] + width + x_offset), -1.0 * self.font_size * (self.position[1] + y_offset)]
-            # upper_left = [-1,
-            #               1.0]
-            # lower_left = [-1,
-            #               -1]
-            # upper_right = [1.0,
-            #                1.0]
-            # lower_right = [1,
-            #                -1.0]
-            # positions = upper_left + lower_left + upper_right + lower_right + upper_right + lower_left
-            # vertices += positions
-            vertices += [
-                    # upper left
-                    -1.0 * width * self.font_size + self.position[0] + x_offset, 1.0 * height * self.font_size + self.position[1] - y_offset,
-                    text_coords[0].x, text_coords[0].y,
-                    # lower left
-                    -1.0 * width * self.font_size + self.position[0] + x_offset, -1.0 * height * self.font_size + self.position[1] - y_offset,
-                    text_coords[1].x, text_coords[1].y,
-                    # upper right
-                    1.0 * width * self.font_size + self.position[0] + x_offset, 1.0 * height * self.font_size + self.position[1] - y_offset,
-                    text_coords[2].x, text_coords[2].y,
-                    # lower right
-                    1.0 * width * self.font_size + self.position[0] + x_offset, -1.0 * height * self.font_size + self.position[1] - y_offset,
-                    text_coords[3].x, text_coords[3].y,
-                    # upper right
-                    1.0 * width * self.font_size + self.position[0] + x_offset, 1.0 * height * self.font_size + self.position[1] - y_offset,
-                    text_coords[2].x, text_coords[2].y,
-                    # lower left
-                    -1.0 * width * self.font_size + self.position[0] + x_offset, -1.0 * height * self.font_size + self.position[1] - y_offset,
-                    text_coords[1].x, text_coords[1].y,
-                ]
-            # height *= 2
-            # width *= 2
-            # y_offset *= 1
-            # x_offset *= 2
-            # vertices += [
-            #         # upper left
-            #         -1.0 * self.font_size + self.position[0] + x_offset, 1.0 * self.font_size + self.position[1] - y_offset + height,
-            #         text_coords[0].x, text_coords[0].y,
-            #         # lower left
-            #         -1.0 * self.font_size + self.position[0] + x_offset, -1.0 * self.font_size + self.position[1] - y_offset,
-            #         text_coords[1].x, text_coords[1].y,
-            #         # upper right
-            #         1.0 * self.font_size + self.position[0] + x_offset + width, 1.0 * self.font_size + self.position[1] - y_offset + height,
-            #         text_coords[2].x, text_coords[2].y,
-            #         # lower right
-            #         1.0 * self.font_size + self.position[0] + x_offset + width, -1.0 * self.font_size + self.position[1] - y_offset,
-            #         text_coords[3].x, text_coords[3].y,
-            #         # upper right
-            #         1.0 * self.font_size + self.position[0] + x_offset + width, 1.0 * self.font_size + self.position[1] - y_offset + height,
-            #         text_coords[2].x, text_coords[2].y,
-            #         # lower left
-            #         -1.0 * self.font_size + self.position[0] + x_offset, -1.0 * self.font_size + self.position[1] - y_offset,
-            #         text_coords[1].x, text_coords[1].y,
-            #     ]
+            width = (char_info['width'] / 512) * self.font_size
+            height = (char_info['height'] / 512) * self.font_size
+            x_offset = (char_info['xoffset'] / 512) * self.font_size
+            y_offset = (char_info['yoffset'] / 512) * self.font_size
+            x_advance = (char_info['xadvance'] / 512) * self.font_size
+
+            # upper_left = [self.font_size * (self.position[0] + x_offset), self.font_size * (self.position[1] - y_offset), text_coords[0].x, text_coords[0].y, ]
+            # lower_left = [self.font_size * (self.position[0] + x_offset), self.font_size * (self.position[1] - y_offset - height), text_coords[1].x, text_coords[1].y, ]
+            # upper_right = [self.font_size * (self.position[0] + width + x_offset), self.font_size * (self.position[1] - y_offset), text_coords[2].x, text_coords[2].y, ]
+            # lower_right = [self.font_size * (self.position[0] + width + x_offset), self.font_size * (self.position[1] - y_offset - height), text_coords[3].x, text_coords[3].y, ]
+
+            upper_left = [(self.position[0] + x_offset),  (self.position[1] - y_offset), text_coords[0].x, text_coords[0].y, ]
+            lower_left = [(self.position[0] + x_offset),  (self.position[1] - y_offset - height), text_coords[1].x, text_coords[1].y, ]
+            upper_right = [(self.position[0] + width + x_offset),  (self.position[1] - y_offset), text_coords[2].x, text_coords[2].y, ]
+            lower_right = [(self.position[0] + width + x_offset),  (self.position[1] - y_offset - height), text_coords[3].x, text_coords[3].y, ]
+
+
+            positions = upper_left + lower_left + upper_right + lower_right + upper_right + lower_left
+            vertices += positions
+
             self.position[0] += x_advance
+            if self.position[0] > self.right_box_limit:
+                self.position[0] = self.box_left
+                # self.position[1] -= 0.25
+                self.position[1] -= 0.25 * self.font_size
             self.vertices_count += 0
         return np.array(
             vertices,
@@ -647,8 +654,13 @@ class TextBox(Character):
         # model = glm.scale(model, self.scale)
         # glUniformMatrix4fv(self.model_loc, 1, GL_FALSE, glm.value_ptr(model))
 
+        glUniform4fv(self.color_loc, 1, glm.value_ptr(self.color))
+
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glDisable(GL_DEPTH_TEST)
         # glDrawArrays(GL_TRIANGLE_STRIP, 0, self.vertices_count)
         # glDrawArrays(GL_TRIANGLES, 0, self.vertices_count)
         glDrawArrays(GL_TRIANGLES, 0, int(len(self.vertices) / 3))
+        glDisable(GL_BLEND)
+        glEnable(GL_DEPTH_TEST)

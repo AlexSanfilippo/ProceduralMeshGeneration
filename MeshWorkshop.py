@@ -132,11 +132,10 @@ def key_input_clb(window, key, scancode, action, mode):
 
 def cycle_ship_texture():
     global ship_texture_cycle_id
-    if ship_texture_cycle_id < 2:
+    if ship_texture_cycle_id < 3:
         ship_texture_cycle_id += 1
     else:
         ship_texture_cycle_id = 0
-    # if spaceship_parameters['diffuse'] == texture_dictionary['spaceship_diffuse']:
     if ship_texture_cycle_id == 0:
         spaceship_parameters['diffuse'] = texture_dictionary['penguin_diffuse']
         spaceship_parameters['specular'] = texture_dictionary['penguin_specular']
@@ -151,6 +150,11 @@ def cycle_ship_texture():
         spaceship_parameters['diffuse'] = texture_dictionary['whoa_diffuse']
         spaceship_parameters['specular'] = texture_dictionary['whoa_specular']
         spaceship_parameters['emission'] = texture_dictionary['atlas_debug_emission']
+        update_spaceship_texture()
+    elif ship_texture_cycle_id == 3:
+        spaceship_parameters['diffuse'] = texture_dictionary['spaceship_diffuse']
+        spaceship_parameters['specular'] = texture_dictionary['spaceship_specular']
+        spaceship_parameters['emission'] = texture_dictionary['spaceship_emission']
         update_spaceship_texture()
 
 
@@ -496,8 +500,8 @@ direction_diffuse = [0.0]*3
 direction_ambient = [0.0]*3
 direction_specular = [0.0]*3
 # create the light cube
-my_plc = plc.PointLightCube(pos=[0.0, 20.0, 0.0], ambient=[0.25]*3, diffuse=[0.9]*3,
-                            specular=[0.8]*3, linear=0.0014, quadratic=.000007)
+my_plc = plc.PointLightCube(pos=[0.0, 20.0, 0.0], ambient=[0.2]*3, diffuse=[0.9]*3,
+                            specular=[0.0]*3, linear=0.0014, quadratic=.000007)
 debug_plcs = [my_plc]
 move_whole_compass_z = -80
 debug_plcs.append(plc.PointLightCube(
@@ -588,17 +592,17 @@ debug_ship_orders = [
 ]
 
 spaceship_parameters = {
-    'number_of_sides': 6,
-    'number_of_segments': 5,
+    'number_of_sides': 8,
+    'number_of_segments': 10,
     'transform_x': 1.0,
     'transform_z': 2.0,
     'scale': 3.3,
-    # 'diffuse': texture_dictionary['spaceship_diffuse'],
-    # 'specular': texture_dictionary['spaceship_specular'],
-    # 'emission': texture_dictionary['spaceship_emission'],
-    'diffuse': texture_dictionary['whoa_diffuse'],
-    'specular': texture_dictionary['whoa_specular'],
-    'emission': texture_dictionary['whoa_emission'],
+    'diffuse': texture_dictionary['spaceship_diffuse'],
+    'specular': texture_dictionary['spaceship_specular'],
+    'emission': texture_dictionary['spaceship_emission'],
+    # 'diffuse': texture_dictionary['whoa_diffuse'],
+    # 'specular': texture_dictionary['whoa_specular'],
+    # 'emission': texture_dictionary['whoa_emission'],
     'position': [0.0, 0.0, 0.0],
     'length_of_segment': 10,
 }
@@ -689,7 +693,7 @@ def generate_new_ship():
         dimensions=[5.0, 5.0],
         position=ships[0].model.position,
         rotation_magnitude=ships[0].model.rotation_magnitude,
-        rotation_axis=glm.vec3([0.0, 0.0, 1.0]),
+        rotation_axis=glm.vec3((0.0, 0.0, 1.0)),
         number_of_sides=spaceship_parameters['number_of_sides'],
         number_of_segments=spaceship_parameters['number_of_segments'],
         transform_x=spaceship_parameters['transform_x'],
@@ -705,73 +709,100 @@ def generate_new_ship():
 from GUI import Element, GUI, Character, TextBox
 
 # test_gui = Element(position=(-.75, -0.75), scale=(0.25, 0.25), texture=texture_dictionary['whoa_diffuse'], atlas_size=2, atlas_coordinate=3)
-
+text_boxes = []
 test_gui = GUI(screen_size=(WIDTH, HEIGHT))
-test_gui.add_element(
-    shader=None,
-    position=(-.75, -0.75),
-    scale=(0.25, 0.25),
-    texture=texture_dictionary['whoa_diffuse'],
-    atlas_size=2,
-    atlas_coordinate=0,
-)
-test_gui.add_element(
-    shader=None,
-    position=(-.75, 0.75),
-    scale=(0.25, 0.25),
-    texture=texture_dictionary['whoa_diffuse'],
-    atlas_size=2,
-    atlas_coordinate=3,
-    context_id='button'
-)
+
 test_gui.add_button(
     shader=None,
-    position=(0.75, 0.75),
-    scale=(0.25, 0.25),
+    position=(-0.75, 0.8),
+    scale=(0.12, 0.05),
     texture=texture_dictionary['whoa_diffuse'],
     atlas_size=2,
-    atlas_coordinate=(0, 1),
+    atlas_coordinate=(2, 1),
+    click_function=None,
+    context_id='button',
+    context_status=False,
+)
+text_button = test_gui.buttons[0]
+text_button.add_text_box(texture=texture_dictionary['font_atlas'], font_size=0.35, color=(0.0, 0.25, 0.0, 1.0))
+
+test_gui.add_button(
+    shader=None,
+    position=(0.75, 0.80),
+    scale=(0.32, 0.05),
+    texture=texture_dictionary['whoa_diffuse'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
     click_function=generate_new_ship,
     context_id='button',
     context_status=False,
 )
+text_button = test_gui.buttons[1]
+text_button.add_text_box(
+    texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    color=(0.0, 0.25, 0.0, 1.0),
+    text='Generate New Ship'
+)
+
 test_gui.add_button(
     shader=None,
-    position=(0.75, 0.0),
-    scale=(0.25, 0.25),
+    position=(0.80, 0.70),
+    scale=(0.22, 0.05),
     texture=texture_dictionary['whoa_diffuse'],
     atlas_size=2,
-    atlas_coordinate=(0, 1),
+    atlas_coordinate=(2, 1),
     click_function=cycle_ship_texture,
     context_id='button',
     context_status=False,
 )
+text_button = test_gui.buttons[2]
+text_button.add_text_box(
+    texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    color=(0.0, 0.25, 0.0, 1.0),
+    text='Next Texture'
+)
 test_gui.add_button(
     shader=None,
-    position=(0.75, 0.25),
-    scale=(0.15, 0.15),
+    position=(0.85, 0.60),
+    scale=(0.12, 0.05),
     texture=texture_dictionary['whoa_diffuse'],
     atlas_size=2,
-    atlas_coordinate=(2, 3),
+    atlas_coordinate=(2, 1),
     click_function=test_gui.switch_context_status,
     context_id='button',
     context_status=False,
     click_function_context_id='button',
     click_function_status_status=False,
 )
+text_button = test_gui.buttons[3]
+text_button.add_text_box(
+    texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    color=(0.0, 0.25, 0.0, 1.0),
+    text='Close'
+)
 test_gui.add_button(
     shader=None,
-    position=(0.25, 0.75),
-    scale=(0.15, 0.15),
+    position=(0.85, 0.90),
+    scale=(0.12, 0.05),
     texture=texture_dictionary['whoa_diffuse'],
     atlas_size=2,
-    atlas_coordinate=(0, 1),
+    atlas_coordinate=(2, 1),
     click_function=test_gui.switch_context_status,
     context_id='context_on',
     context_status=True,
     click_function_context_id='button',
     click_function_status_status=True,
 
+)
+text_button = test_gui.buttons[4]
+text_button.add_text_box(
+    texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    color=(0.0, 0.25, 0.0, 1.0),
+    text='Options'
 )
 test_gui.build_elements_list()
 
@@ -780,12 +811,15 @@ test_gui.build_elements_list()
 test_char = TextBox(
     shader=None,
     texture=texture_dictionary['font_atlas'],
-    position=(-1.0, 0.5),
+    position=(-1.0, 1.0),
     scale=(0.5, 0.5),
     screen_size=(WIDTH, HEIGHT),
     context_id='default',
-    text='Hello, World!',
-    font_size=.5
+    # text='Hello, World!  I am delighted to meet you.',
+    text='Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
+    font_size=0.25,
+    width=1.5,
+    color=(0.8, 0.3, 0.25, 1.0),
 )
 
 
@@ -802,10 +836,6 @@ while not glfw.window_should_close(window):
 
     for mesh in meshes:
         mesh.draw(view=view)
-
-    """Text Rendering"""
-    test_char.draw()
-
 
     # for shape in shapes:
     #     shape.draw(view=view)
@@ -870,8 +900,16 @@ while not glfw.window_should_close(window):
         window_as_PIL_image = Image.fromarray(window_as_numpy_arr)
         images.append(window_as_PIL_image)
 
+
+
     """GUI TESTING"""
     test_gui.draw()
+    for text_box in text_boxes:
+        text_box.draw()
+    """Text Rendering"""
+    # test_char.draw()
+
+
     glUseProgram(shader)
 
 
