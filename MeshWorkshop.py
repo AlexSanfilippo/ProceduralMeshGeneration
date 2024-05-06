@@ -132,7 +132,7 @@ def key_input_clb(window, key, scancode, action, mode):
 
 def cycle_ship_texture():
     global ship_texture_cycle_id
-    if ship_texture_cycle_id < 3:
+    if ship_texture_cycle_id < 4:
         ship_texture_cycle_id += 1
     else:
         ship_texture_cycle_id = 0
@@ -155,6 +155,11 @@ def cycle_ship_texture():
         spaceship_parameters['diffuse'] = texture_dictionary['spaceship_diffuse']
         spaceship_parameters['specular'] = texture_dictionary['spaceship_specular']
         spaceship_parameters['emission'] = texture_dictionary['spaceship_emission']
+        update_spaceship_texture()
+    elif ship_texture_cycle_id == 4:
+        spaceship_parameters['diffuse'] = texture_dictionary['ship_a_diffuse']
+        spaceship_parameters['specular'] = texture_dictionary['ship_a_specular']
+        spaceship_parameters['emission'] = texture_dictionary['ship_a_emission']
         update_spaceship_texture()
 
 
@@ -549,7 +554,7 @@ glUniform3fv(glGetUniformLocation(shader, "dir_light.specular"), 1, direction_sp
 
 """Tile Sets"""
 #simplest possible tileset: cross, straight(x2), and blank
-tile_textures = glGenTextures(17)
+tile_textures = glGenTextures(21)
 load_texture("Textures/beige_atlas_diffuse.png", tile_textures[0])
 load_texture("Textures/whoa_atlas_specular.png", tile_textures[1])
 load_texture("Textures/penguin_atlas_emission.png", tile_textures[2])
@@ -567,6 +572,11 @@ load_texture("Textures/whoa_atlas_diffuse.png", tile_textures[13])
 load_texture("Textures/whoa_atlas_specular.png", tile_textures[14])
 load_texture("Textures/penguin_atlas_emission.png", tile_textures[15])
 load_texture("Fonts/my_font.png", tile_textures[16])
+load_texture("Textures/button_atlas_workshop.png", tile_textures[17])
+
+load_texture("Textures/ship_a_diffuse.png", tile_textures[18])
+load_texture("Textures/ship_a_specular.png", tile_textures[19])
+load_texture("Textures/ship_a_emission.png", tile_textures[20])
 
 
 texture_dictionary = {
@@ -584,6 +594,10 @@ texture_dictionary = {
     "whoa_specular": tile_textures[14],
     "whoa_emission": tile_textures[15],
     "font_atlas": tile_textures[16],
+    "button_atlas": tile_textures[17],
+    "ship_a_diffuse": tile_textures[18],
+    "ship_a_specular": tile_textures[19],
+    "ship_a_emission": tile_textures[20],
 }
 
 
@@ -597,9 +611,12 @@ spaceship_parameters = {
     'transform_x': 1.0,
     'transform_z': 2.0,
     'scale': 3.3,
-    'diffuse': texture_dictionary['spaceship_diffuse'],
-    'specular': texture_dictionary['spaceship_specular'],
-    'emission': texture_dictionary['spaceship_emission'],
+    'diffuse': texture_dictionary['ship_a_diffuse'],
+    'specular': texture_dictionary['ship_a_specular'],
+    'emission': texture_dictionary['ship_a_emission'],
+    # 'diffuse': texture_dictionary['spaceship_diffuse'],
+    # 'specular': texture_dictionary['spaceship_specular'],
+    # 'emission': texture_dictionary['spaceship_emission'],
     # 'diffuse': texture_dictionary['whoa_diffuse'],
     # 'specular': texture_dictionary['whoa_specular'],
     # 'emission': texture_dictionary['whoa_emission'],
@@ -652,6 +669,7 @@ for ship in range(num_ships):
         diffuse=spaceship_parameters['diffuse'],
         specular=spaceship_parameters['specular'],
         emission=spaceship_parameters['emission'],
+
         # diffuse=texture_dictionary["penguin_diffuse"],
         # emission=texture_dictionary["penguin_emission"],
         # specular=texture_dictionary["penguin_specular"],
@@ -714,34 +732,43 @@ test_gui = GUI(screen_size=(WIDTH, HEIGHT))
 
 test_gui.add_button(
     shader=None,
-    position=(-0.75, 0.8),
-    scale=(0.12, 0.05),
-    texture=texture_dictionary['whoa_diffuse'],
+    position=(-0.5, 0.5),
+    position_mode='center',
+    scale=(0.5, 0.5),
+    texture=texture_dictionary['button_atlas'],
     atlas_size=2,
-    atlas_coordinate=(2, 1),
+    atlas_coordinate=(2, 3),
     click_function=None,
-    context_id='button',
+    context_id='lorem',
     context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0)
 )
 text_button = test_gui.buttons[0]
-text_button.add_text_box(texture=texture_dictionary['font_atlas'], font_size=0.35, color=(0.0, 0.25, 0.0, 1.0))
+text_button.add_text_box(
+    texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    color=(1.0, 1.0, 1.0, 1.0),
+    centered=True,
+    text='Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque in aliquam elit. Duis non eros augue.',
+)
 
 test_gui.add_button(
     shader=None,
     position=(0.75, 0.80),
     scale=(0.32, 0.05),
-    texture=texture_dictionary['whoa_diffuse'],
+    texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=(2, 1),
     click_function=generate_new_ship,
     context_id='button',
     context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0)
 )
 text_button = test_gui.buttons[1]
 text_button.add_text_box(
     texture=texture_dictionary['font_atlas'],
     font_size=0.35,
-    color=(0.0, 0.25, 0.0, 1.0),
+    color=(1.0, 1.0, 1.0, 1.0),
     text='Generate New Ship'
 )
 
@@ -749,25 +776,26 @@ test_gui.add_button(
     shader=None,
     position=(0.80, 0.70),
     scale=(0.22, 0.05),
-    texture=texture_dictionary['whoa_diffuse'],
+    texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=(2, 1),
     click_function=cycle_ship_texture,
     context_id='button',
     context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0)
 )
 text_button = test_gui.buttons[2]
 text_button.add_text_box(
     texture=texture_dictionary['font_atlas'],
     font_size=0.35,
-    color=(0.0, 0.25, 0.0, 1.0),
+    color=(1.0, 1.0, 1.0, 1.0),
     text='Next Texture'
 )
 test_gui.add_button(
     shader=None,
     position=(0.85, 0.60),
     scale=(0.12, 0.05),
-    texture=texture_dictionary['whoa_diffuse'],
+    texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=(2, 1),
     click_function=test_gui.switch_context_status,
@@ -775,19 +803,21 @@ test_gui.add_button(
     context_status=False,
     click_function_context_id='button',
     click_function_status_status=False,
+    color=(1.0, 1.0, 1.0, 1.0)
 )
 text_button = test_gui.buttons[3]
 text_button.add_text_box(
     texture=texture_dictionary['font_atlas'],
     font_size=0.35,
-    color=(0.0, 0.25, 0.0, 1.0),
+    color=(1.0, 1.0, 1.0, 1.0),
     text='Close'
 )
+
 test_gui.add_button(
     shader=None,
     position=(0.85, 0.90),
     scale=(0.12, 0.05),
-    texture=texture_dictionary['whoa_diffuse'],
+    texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=(2, 1),
     click_function=test_gui.switch_context_status,
@@ -795,32 +825,57 @@ test_gui.add_button(
     context_status=True,
     click_function_context_id='button',
     click_function_status_status=True,
-
+    color=(1.0, 1.0, 1.0, 1.0)
 )
 text_button = test_gui.buttons[4]
 text_button.add_text_box(
     texture=texture_dictionary['font_atlas'],
     font_size=0.35,
-    color=(0.0, 0.25, 0.0, 1.0),
-    text='Options'
+    color=(1.0, 1.0, 1.0, 1.0),
+    text='Options',
 )
+
+def change_text(text_box):
+    """
+    button-function for changing the text of a text box
+    :param text_box:
+    :return:
+    """
+    if text_box:
+        text_box.update_text(text='wow, we changed the text', color=(1.0, 0.0, 0.0, 1.0))
+    else:
+        print(f'No textbox in change_text!')
+# """Text Rendering"""
+# test_char = TextBox(
+#     shader=None,
+#     texture=texture_dictionary['font_atlas'],
+#     position=(-1.0, 1.0),
+#     scale=(0.5, 0.5),
+#     screen_size=(WIDTH, HEIGHT),
+#     context_id='default',
+#     text='Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
+#     font_size=0.25,
+#     width=1.5,
+#     color=(0.8, 0.3, 0.25, 1.0),
+# )
+# test_gui.add_button(
+#     shader=None,
+#     position=(0.0, 0.0),
+#     scale=(0.25, 0.25),
+#     texture=texture_dictionary['whoa_diffuse'],
+#     atlas_size=2,
+#     atlas_coordinate=(2, 1),
+#     click_function=change_text,
+#     context_status=True,
+#     click_function_text_box=text_button.text_box,
+# )
+
 test_gui.build_elements_list()
 
 
-"""Text Rendering"""
-test_char = TextBox(
-    shader=None,
-    texture=texture_dictionary['font_atlas'],
-    position=(-1.0, 1.0),
-    scale=(0.5, 0.5),
-    screen_size=(WIDTH, HEIGHT),
-    context_id='default',
-    # text='Hello, World!  I am delighted to meet you.',
-    text='Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
-    font_size=0.25,
-    width=1.5,
-    color=(0.8, 0.3, 0.25, 1.0),
-)
+
+
+
 
 
 while not glfw.window_should_close(window):

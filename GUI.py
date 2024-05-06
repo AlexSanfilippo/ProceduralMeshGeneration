@@ -170,6 +170,8 @@ class GUI:
         click_function=None,
         context_id='default',
         context_status=True,
+        color=(1.0, 1.0, 1.0, 1.0),
+        position_mode='center',
         **click_function_kwargs,
     ):
         button = Button(
@@ -182,6 +184,8 @@ class GUI:
             atlas_coordinate=atlas_coordinate,
             click_function=click_function,
             context_id=context_id,
+            color=glm.vec4(color),
+            position_mode=position_mode,
             click_function_kwargs=click_function_kwargs,
         )
         self.buttons.append(button)
@@ -374,16 +378,18 @@ class Element:
                 * subtexture_magnitude
         return texture_coordinates
 
-    def add_text_box(self, texture, text="DEFAULT TEXT", color=(1.0, 1.0, 1.0, 1.0), font_size=1.0, width=0.9):
+    def add_text_box(self, texture, text="DEFAULT TEXT", color=(1.0, 1.0, 1.0, 1.0), font_size=1.0, width=1.0, centered=True):
         self.text_box = TextBox(
             texture=texture,
-            position=(self.position.x - self.scale[0]*0.9, self.position.y + self.scale[1]*0.9),
+            position=(self.position.x, self.position.y),
+            scale=self.scale,
             screen_size=self.screen_size,
             context_id=self.context_id,
             text=text,
             font_size=font_size,
             width=self.scale[0]*2*width,
-            color=glm.vec4(color)
+            color=glm.vec4(color),
+            centered=centered,
             )
 
 class Button(Element):
@@ -402,8 +408,40 @@ class Button(Element):
         atlas_coordinate=(0, 0),
         click_function=None,
         context_id='default',
+        color=(1.0, 1.0, 1.0, 1.0),
+        position_mode='center',
         click_function_kwargs=None,
     ):
+        """
+        :param shader:
+        :param texture:
+        :param position: tuple of length 3.
+        :param scale: between 0 and 1, tuple of length 2
+        :param screen_size: OpenGL Window dimensions
+        :param atlas_size: length of atlas (square atlas only)
+        :param atlas_coordinate: texture atlas coordinate.  tuple of 2 items
+        :param click_function: function called upon click
+        :param context_id: context for turning elements on/off
+        :param color: pass vec4 color to shader
+        :param position_mode: position by default is center. options: bottom_left, bottom_right, top_left, top_right
+        :param click_function_kwargs: args to pass to function.
+        """
+        position = list(position)
+        if position_mode == 'center':
+            pass
+        elif position_mode == 'top_left':
+            position[0] += scale[0]
+            position[1] -= scale[1]
+        elif position_mode == 'top_right':
+            position[0] -= scale[0]
+            position[1] -= scale[1]
+        elif position_mode == 'bottom_left':
+            position[0] += scale[0]
+            position[1] += scale[1]
+        elif position_mode == 'bottom_right':
+            position[0] -= scale[0]
+            position[1] += scale[1]
+
         super().__init__(
             shader=shader,
             texture=texture,
@@ -413,12 +451,14 @@ class Button(Element):
             atlas_size=atlas_size,
             atlas_coordinate=atlas_coordinate[0],
             context_id=context_id,
+            color=color
         )
         self.generate_bounds()
         self.click_function = click_function
         self.atlas_coordinate_on = atlas_coordinate[0]
         self.atlas_coordinate_off = atlas_coordinate[1]
         self.click_function_kwargs = click_function_kwargs
+
     def generate_bounds(self):
         """
         Define vertical and horizontal limits that allow for testing if cursor is
@@ -491,6 +531,7 @@ class Character(Element):
         font_size=1.0,
         width=1.0,
         color=(1.0, 1.0, 1.0, 1.0),
+        centered=False,
     ):
         """
 
@@ -520,7 +561,7 @@ class Character(Element):
             self.texture = gui_textures[0]
         else:
             self.texture = texture
-        self.position = glm.vec2(position)
+        self.position = glm.vec2((position[0] - scale[0], position[1] + scale[1]))
         self.scale = scale
         self.screen_size = screen_size
         self.screen_size = screen_size
@@ -529,9 +570,10 @@ class Character(Element):
         self.font_size = font_size
         self.vertices_count = 4
         self.color = glm.vec4(color)
+        self.centered = centered
         self.characters = self.get_characters()
         self.width = width
-        self.right_box_limit = self.position.x + width
+        self.box_right = self.position.x + width
         self.vertices = self.generate_vertices()
         self.buffer_setup()
 
@@ -593,9 +635,25 @@ class TextBox(Character):
 
     def generate_vertices(self):
         vertices = []
+        vertices_line = []
         self.box_left = self.position[0]
+        box_center_horizontal = (self.box_right + self.box_left) / 2.0
+        position_initial = self.position.__copy__()
+        text = self.text
 
-        for char in self.text:
+        # for index, char in enumerate(text):
+        index_char = 0
+        loop_count = 0
+        history = {}
+        history_word = {}
+        while index_char < len(text):
+            # loop_count += 1
+            # if loop_count > 100:
+            #     break
+            if index_char not in set(history.keys()):
+                history[index_char] = 0
+            loop_count += 1
+            char = text[index_char]
             char_info = self.characters[char]
             width = (char_info['width'] / 512)
             height = (char_info['height'] / 512)
@@ -614,30 +672,93 @@ class TextBox(Character):
             y_offset = (char_info['yoffset'] / 512) * self.font_size
             x_advance = (char_info['xadvance'] / 512) * self.font_size
 
-            # upper_left = [self.font_size * (self.position[0] + x_offset), self.font_size * (self.position[1] - y_offset), text_coords[0].x, text_coords[0].y, ]
-            # lower_left = [self.font_size * (self.position[0] + x_offset), self.font_size * (self.position[1] - y_offset - height), text_coords[1].x, text_coords[1].y, ]
-            # upper_right = [self.font_size * (self.position[0] + width + x_offset), self.font_size * (self.position[1] - y_offset), text_coords[2].x, text_coords[2].y, ]
-            # lower_right = [self.font_size * (self.position[0] + width + x_offset), self.font_size * (self.position[1] - y_offset - height), text_coords[3].x, text_coords[3].y, ]
-
             upper_left = [(self.position[0] + x_offset),  (self.position[1] - y_offset), text_coords[0].x, text_coords[0].y, ]
             lower_left = [(self.position[0] + x_offset),  (self.position[1] - y_offset - height), text_coords[1].x, text_coords[1].y, ]
             upper_right = [(self.position[0] + width + x_offset),  (self.position[1] - y_offset), text_coords[2].x, text_coords[2].y, ]
             lower_right = [(self.position[0] + width + x_offset),  (self.position[1] - y_offset - height), text_coords[3].x, text_coords[3].y, ]
 
-
             positions = upper_left + lower_left + upper_right + lower_right + upper_right + lower_left
-            vertices += positions
+            vertices_line += positions
 
             self.position[0] += x_advance
-            if self.position[0] > self.right_box_limit:
-                self.position[0] = self.box_left
-                # self.position[1] -= 0.25
-                self.position[1] -= 0.25 * self.font_size
+
+            #Check if need newline and handle
+            if self.position[0] > self.box_right:
+                if char == ' ':
+                    self.position[0] = self.box_left
+                    self.position[1] -= 0.25 * self.font_size
+                else:
+                    #if haven't tried newlining at this index yet
+                    index_back_check = index_char
+                    char_back_check = char
+                    while char_back_check != ' ':
+                        char_back_check = text[index_back_check]
+                        #remove char's quad
+                        vertices_line = vertices_line[:-4*6]
+                        #move onto previous char
+                        index_back_check -= 1
+                    #go back to beginning of word
+                    index_char = index_back_check + 1
+                    index_first_letter = index_char + 1
+                    if index_first_letter in set(history_word.keys()):
+                        history_word[index_first_letter] += 1
+                    else:
+                        history_word[index_first_letter] = 1
+                    #move cursor down to next line, and to far left side
+                    if history_word[index_first_letter] <= 1:
+                        self.position[0] = self.box_left
+                        self.position[1] -= 0.25 * self.font_size
+                    else:
+                        #if we've already tried newlining this word, just have to split the word
+                        raise Exception(f'A word at index {index_first_letter} in the text is longer than the text box.')
+
+                        # index_char = index_char_original - 1
+                        # self.position[0] = self.box_left
+                        # self.position[1] -= 0.25 * self.font_size
+                if self.centered:
+                    self.center_text_horizontal(box_center_horizontal, vertices_line)
+
+                vertices += vertices_line
+                vertices_line.clear()
+
             self.vertices_count += 0
+            index_char += 1
+        self.position = position_initial
+
+        if self.centered:
+            self.center_text_horizontal(box_center_horizontal, vertices_line)
+            vertices += vertices_line
+            self.center_text_vertically(vertices, vertices_line)
+        else:
+            vertices += vertices_line
+
         return np.array(
             vertices,
             dtype=np.float32
         )
+
+    def center_text_vertically(self, vertices, vertices_line):
+        box_bottom = self.position.y - (self.scale[1] * 2)
+        box_center_vertical = (self.position.y + box_bottom) / 2
+        text_center_vertical = (vertices[1] + vertices_line[-3]) / 2
+        shift = box_center_vertical - text_center_vertical
+        for index, value in enumerate(vertices):
+            if index % 4 == 1:
+                vertices[index] += shift
+
+    def center_text_horizontal(self, box_center_horizontal, vertices_line):
+        text_center_horizontal = (vertices_line[0] + vertices_line[-8]) / 2.0
+        shift = box_center_horizontal - text_center_horizontal
+        for index, value in enumerate(vertices_line):
+            if index % 4 == 0:
+                vertices_line[index] += shift
+
+    def update_text(self, text, color):
+        self.text = text
+        self.color = glm.vec4(color)
+        del self.vertices
+        self.vertices = self.generate_vertices()
+        self.buffer_setup()
 
     def draw(self):
         glUseProgram(self.shader)
