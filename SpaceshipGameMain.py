@@ -494,7 +494,7 @@ view_pos_loc = glGetUniformLocation(shader, "view_pos")  # cam pos for specular 
 glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection_2)
 
 # create the light cube
-my_plc = plc.PointLightCube(pos=[0.0, 0.0, 0.0], ambient=[0.8]*3, diffuse=[1.0]*3,
+my_plc = plc.PointLightCube(pos=[0.0, 0.0, 0.0], ambient=[0.5]*3, diffuse=[0.9]*3,
                             specular=[1.0]*3)
 debug_plcs = []
 debug_plcs.append(plc.PointLightCube(

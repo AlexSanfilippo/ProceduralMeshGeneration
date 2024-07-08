@@ -47,6 +47,7 @@ import numpy as np
 import math
 from math import sin, cos, pi, sqrt, floor, ceil
 from random import random
+import random as r
 
 vertex_src = """
 # version 330
@@ -519,6 +520,7 @@ class PrimativeMesh():
 
         TODO:
             -Refactoring for neatness/clarity
+            -wrong texture coords for irregular convex polygons
         """
 
         if depth == 0:
@@ -555,6 +557,7 @@ class PrimativeMesh():
             test_cut_face.offset_outer_vertices(offset=face_normal*bevel_depths[i])
             test_cut_face.vertices = test_cut_face.outer_vertices_to_vertices(
                                 reverse_texture_coordinates=True,
+                                regular=False,
             )
             if i == depth - 1:
                 updated_faces.append(test_cut_face)
@@ -885,6 +888,9 @@ class PrimativeMesh():
         """
         Takes in a quadrillateral face and divides it into subfaces along the length of the face
         :return: list of faces
+
+        todo: the widthwise option rotates and distorts the texture
+            -need a way to do widthwise that does not rely on rotating the list naively
         """
         original_outer_vertices = face.outer_vertices.copy()
         operatable_outer_vertices = original_outer_vertices.copy()
@@ -921,6 +927,8 @@ class PrimativeMesh():
                 outer_vertices_bottom[subdivision_index+1],
                 outer_vertices_top[subdivision_index+1]
             ]
+            subdivision_outer_vertices = rotate_list(current_list=subdivision_outer_vertices, steps=-1)
+
             subdivision_face.outer_vertices_vec3 = subdivision_outer_vertices
             subdivision_face.outer_vertices = vec3_list_to_list(subdivision_outer_vertices)
             subdivision_face.vertices = subdivision_face.outer_vertices_to_vertices()
@@ -1024,6 +1032,7 @@ class Spaceship(PrimativeMeshEmission):
         transform_z=1.0,
         length_of_segment=1.0,
         radius=1.0,
+        seed=1,
     ):
         self.number_of_sides = number_of_sides
         self.number_of_segments = number_of_segments
@@ -1031,6 +1040,7 @@ class Spaceship(PrimativeMeshEmission):
         self.transform_z = transform_z
         self.length_of_segment = length_of_segment
         self.radius = radius
+        r.seed(seed)
         super().__init__(
             shader=shader,
             # material properties
@@ -1117,9 +1127,9 @@ class Spaceship(PrimativeMeshEmission):
 
         #texturing
         thruster_backend = thruster_faces.pop(-(self.number_of_sides + 1))
-        thruster_backend.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=3)
+        thruster_backend.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=0)
         for face in thruster_faces:
-            face.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=1)
+            face.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=3)
 
         return thruster_faces + [thruster_backend]
     def generate_nose(self, face):
@@ -1217,14 +1227,11 @@ class Spaceship(PrimativeMeshEmission):
     #     return faces_altered
 
     def add_detail_to_faces(self, faces_to_alter):
-        #todo:remove this hack
-        # return faces_to_alter
-
-        #todo: this assumes 4 sides.  Need N-sided system
-            #3, 6, 9 should have 3-way symmetry (60-degree sameness)
-            #4, 8, 10, 12 should be same on opposite side faces (?)
-            #5, 7, 11, tbd
-        #combine these loops in refactor
+        """
+        Goes around faces of segmented cylindar and replaces plain quads with detailed meshes
+        :param faces_to_alter:
+        :return:
+        """
 
         if self.number_of_sides % 3 == 0:
             symmetry_type = 'triangular'
@@ -1403,6 +1410,7 @@ class Spaceship(PrimativeMeshEmission):
 
         for face in faces_paired:
             if instructions_per_segment[index_segment][index_instruction] < 0.25:
+                # pass
                 local_faces_altered += self.add_detail_cubbies(face)
             elif instructions_per_segment[index_segment][index_instruction] < 0.5:
                 local_faces_altered += self.add_detail_pyrimide(face)
@@ -1457,16 +1465,16 @@ class Spaceship(PrimativeMeshEmission):
             faces_current_cubby = self.bevel_cut(
                 original_face=new_stitch_face,
                 bevel_depths=[-0.33],
-                border_sizes=[0.6],
+                border_sizes=[0.5],
                 depth=1,
             )
             faces_current_cubby[0].update_texture_coords_using_atlas_index(
-                texture_atlas_index=3,
+                texture_atlas_index=3, #todo: change to 1
                 texture_atlas_size=2
             )
             for face in faces_current_cubby[1:]:
                 face.update_texture_coords_using_atlas_index(
-                    texture_atlas_index=2,
+                    texture_atlas_index=2, #todo: change to 2
                     texture_atlas_size=2
                 )
             faces_altered_local += faces_current_cubby

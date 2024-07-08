@@ -155,6 +155,42 @@ class GUI:
         self.elements.append(element)
         self.update_context_maps(element=element, status=context_status)
 
+    def add_text_element(
+            self,
+            font_texture,
+            shader=None,
+            texture=None,
+            position=(0.0, 0.0),
+            scale=(0.5, 0.5),
+            atlas_size=1,
+            atlas_coordinate=0,
+            context_status=True,
+            context_id='default',
+            text='',
+            font_color=(1.0, 1.0, 1.0, 1.0),
+            font_size=1.0,
+    ):
+        element = Element(
+            shader=shader,
+            texture=texture,
+            position=position,
+            scale=scale,
+            screen_size=self.screen_size,
+            atlas_size=atlas_size,
+            atlas_coordinate=atlas_coordinate,
+            context_id=context_id,
+        )
+        element.add_text_box(
+            texture=font_texture,
+            text=text,
+            color=font_color,
+            font_size=font_size,
+
+        )
+        self.elements.append(element)
+        self.update_context_maps(element=element, status=context_status)
+
+
     def draw(self):
         for element in self.elements + self.buttons:
             element.draw()
@@ -187,6 +223,48 @@ class GUI:
             color=glm.vec4(color),
             position_mode=position_mode,
             click_function_kwargs=click_function_kwargs,
+        )
+        self.buttons.append(button)
+        self.update_context_maps(element=button, status=context_status)
+
+    def add_text_button(
+        self,
+        font_texture,
+        shader=None,
+        texture=None,
+        position=(0.0, 0.0),
+        scale=(0.5, 0.5),
+        atlas_size=1,
+        atlas_coordinate=(0,),
+        click_function=None,
+        context_id='default',
+        context_status=True,
+        color=(1.0, 1.0, 1.0, 1.0),
+        position_mode='center',
+        text='',
+        font_size=0.35,
+        font_color=(1.0, 1.0, 1.0, 1.0),
+        **click_function_kwargs,
+    ):
+        button = Button(
+            shader=shader,
+            texture=texture,
+            position=position,
+            scale=scale,
+            screen_size=self.screen_size,
+            atlas_size=atlas_size,
+            atlas_coordinate=atlas_coordinate,
+            click_function=click_function,
+            context_id=context_id,
+            color=glm.vec4(color),
+            position_mode=position_mode,
+            click_function_kwargs=click_function_kwargs,
+        )
+        button.add_text_box(
+            texture=font_texture,
+            font_size=font_size,
+            color=font_color,
+            text=text
         )
         self.buttons.append(button)
         self.update_context_maps(element=button, status=context_status)
@@ -238,6 +316,12 @@ class GUI:
         """
         self.context_id_to_status[context_id] = status
         self.build_elements_list()
+
+    def toggle_context_status(self, context_id):
+        self.switch_context_status(
+            context_id=context_id,
+            status=not(self.context_id_to_status[context_id]),
+        )
 
 
 
@@ -345,6 +429,10 @@ class Element:
         glEnable(GL_DEPTH_TEST)
         if self.text_box:
             self.text_box.draw()
+
+
+    def update_text(self, text=None, color=None):
+        self.text_box.update_text(text=text, color=color)
 
     def get_texture_coordinates_atlas(self):
         texture_coordinates = [
@@ -753,9 +841,11 @@ class TextBox(Character):
             if index % 4 == 0:
                 vertices_line[index] += shift
 
-    def update_text(self, text, color):
-        self.text = text
-        self.color = glm.vec4(color)
+    def update_text(self, text=None, color=None):
+        if text:
+            self.text = text
+        if color:
+            self.color = glm.vec4(color)
         del self.vertices
         self.vertices = self.generate_vertices()
         self.buffer_setup()

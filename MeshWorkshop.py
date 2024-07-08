@@ -44,6 +44,8 @@ import SpaceShip
 from Menu import Menu
 from SpaceShip import Headquarters
 
+from GUI import GUI
+
 #AUDIO
 from pydub import AudioSegment
 from pydub.playback import play
@@ -58,7 +60,8 @@ use_follow_cam = False
 
 
 
-WIDTH, HEIGHT = 1280, 720
+# WIDTH, HEIGHT = 1280, 720
+WIDTH, HEIGHT = 1728, 972
 lastX, lastY = WIDTH / 2, HEIGHT / 2
 first_mouse = True
 left, right, forward, backward, make_new_surface = False, False, False, False, False
@@ -130,12 +133,16 @@ def key_input_clb(window, key, scancode, action, mode):
         switch_camera_mode()
 
 
-def cycle_ship_texture():
+def cycle_ship_texture(forward=True):
     global ship_texture_cycle_id
-    if ship_texture_cycle_id < 4:
-        ship_texture_cycle_id += 1
+    MIN = 0
+    MAX = 4
+
+    if forward:
+        ship_texture_cycle_id = min(ship_texture_cycle_id + 1, MAX)
     else:
-        ship_texture_cycle_id = 0
+        ship_texture_cycle_id = max(ship_texture_cycle_id - 1, MIN)
+
     if ship_texture_cycle_id == 0:
         spaceship_parameters['diffuse'] = texture_dictionary['penguin_diffuse']
         spaceship_parameters['specular'] = texture_dictionary['penguin_specular']
@@ -505,15 +512,15 @@ direction_diffuse = [0.0]*3
 direction_ambient = [0.0]*3
 direction_specular = [0.0]*3
 # create the light cube
-my_plc = plc.PointLightCube(pos=[0.0, 20.0, 0.0], ambient=[0.2]*3, diffuse=[0.9]*3,
-                            specular=[0.0]*3, linear=0.0014, quadratic=.000007)
+my_plc = plc.PointLightCube(pos=[0.0, 40.0, 0.0], ambient=[0.1]*3, diffuse=[0.9]*3,
+                            specular=[0.9]*3, linear=0.0014, quadratic=.000007)
 debug_plcs = [my_plc]
 move_whole_compass_z = -80
 debug_plcs.append(plc.PointLightCube(
     pos=[0.0, 10.0, move_whole_compass_z+5.0],
-    ambient=[0.1]*3,
-    diffuse=[0.1]*3,
-    specular=[0.1]*3
+    ambient=[0.0]*3,
+    diffuse=[0.0]*3,
+    specular=[0.0]*3
 ))
 debug_plcs.append(plc.PointLightCube(
     pos=[0.0, 5.0, move_whole_compass_z+10.0],
@@ -540,7 +547,7 @@ debug_plcs.append(plc.PointLightCube(
     specular=[1.0, 1.0, 0.0],
 ))
 
-seed = 1999
+seed = 1999 + 12
 r.seed(seed)
 
 
@@ -552,52 +559,49 @@ glUniform3fv(glGetUniformLocation(shader, "dir_light.ambient"), 1, direction_amb
 glUniform3fv(glGetUniformLocation(shader, "dir_light.specular"), 1, direction_specular)
 
 
-"""Tile Sets"""
-#simplest possible tileset: cross, straight(x2), and blank
-tile_textures = glGenTextures(21)
-load_texture("Textures/beige_atlas_diffuse.png", tile_textures[0])
-load_texture("Textures/whoa_atlas_specular.png", tile_textures[1])
-load_texture("Textures/penguin_atlas_emission.png", tile_textures[2])
-load_texture("Textures/debug_quad_red.png", tile_textures[3])
-load_texture("Textures/penguin_atlas_specular.png", tile_textures[4])
-load_texture("Textures/penguin_atlas_specular.png", tile_textures[5])
-load_texture("Textures/debug_texture_atlas.png", tile_textures[6])
-load_texture("Textures/spaceship_texture_atlas_1.png", tile_textures[7])
-load_texture("Textures/spaceship_texture_atlas_1_specular.png", tile_textures[8])
-load_texture("Textures/spaceship_texture_atlas_1_emission.png", tile_textures[9])
-load_texture("Textures/debug_diffuse_coordinates.png", tile_textures[10])
-load_texture("Textures/penguin_atlas_emission.png", tile_textures[11])
-load_texture("Textures/penguin_atlas_specular.png", tile_textures[12])
-load_texture("Textures/whoa_atlas_diffuse.png", tile_textures[13])
-load_texture("Textures/whoa_atlas_specular.png", tile_textures[14])
-load_texture("Textures/penguin_atlas_emission.png", tile_textures[15])
-load_texture("Fonts/my_font.png", tile_textures[16])
-load_texture("Textures/button_atlas_workshop.png", tile_textures[17])
-
-load_texture("Textures/ship_a_diffuse.png", tile_textures[18])
-load_texture("Textures/ship_a_specular.png", tile_textures[19])
-load_texture("Textures/ship_a_emission.png", tile_textures[20])
+textures = glGenTextures(21)
+load_texture("Textures/beige_atlas_diffuse.png", textures[0])
+load_texture("Textures/whoa_atlas_specular.png", textures[1])
+load_texture("Textures/penguin_atlas_emission.png", textures[2])
+load_texture("Textures/debug_quad_red.png", textures[3])
+load_texture("Textures/penguin_atlas_specular.png", textures[4])
+load_texture("Textures/penguin_atlas_specular.png", textures[5])
+load_texture("Textures/debug_texture_atlas.png", textures[6])
+load_texture("Textures/spaceship_texture_atlas_1.png", textures[7])
+load_texture("Textures/spaceship_texture_atlas_1_specular.png", textures[8])
+load_texture("Textures/spaceship_texture_atlas_1_emission.png", textures[9])
+load_texture("Textures/debug_diffuse_coordinates.png", textures[10])
+load_texture("Textures/penguin_atlas_emission.png", textures[11])
+load_texture("Textures/penguin_atlas_specular.png", textures[12])
+load_texture("Textures/whoa_atlas_diffuse.png", textures[13])
+load_texture("Textures/whoa_atlas_specular.png", textures[14])
+load_texture("Textures/penguin_atlas_emission.png", textures[15])
+load_texture("Fonts/my_font.png", textures[16])
+load_texture("Textures/button_atlas_workshop.png", textures[17])
+load_texture("Textures/ship_a_diffuse.png", textures[18])
+load_texture("Textures/ship_a_specular.png", textures[19])
+load_texture("Textures/ship_a_emission.png", textures[20])
 
 
 texture_dictionary = {
-    "pink": tile_textures[3],
-    "penguin_diffuse": tile_textures[0],
-    "penguin_specular": tile_textures[1],
-    "penguin_emission": tile_textures[2],
-    "spaceship_diffuse": tile_textures[7],
-    "spaceship_specular": tile_textures[8],
-    "spaceship_emission": tile_textures[9],
-    "atlas_debug_diffuse": tile_textures[10],
-    "atlas_debug_emission": tile_textures[11],
-    "atlas_debug_specular": tile_textures[12],
-    "whoa_diffuse": tile_textures[13],
-    "whoa_specular": tile_textures[14],
-    "whoa_emission": tile_textures[15],
-    "font_atlas": tile_textures[16],
-    "button_atlas": tile_textures[17],
-    "ship_a_diffuse": tile_textures[18],
-    "ship_a_specular": tile_textures[19],
-    "ship_a_emission": tile_textures[20],
+    "pink": textures[3],
+    "penguin_diffuse": textures[0],
+    "penguin_specular": textures[1],
+    "penguin_emission": textures[2],
+    "spaceship_diffuse": textures[7],
+    "spaceship_specular": textures[8],
+    "spaceship_emission": textures[9],
+    "atlas_debug_diffuse": textures[10],
+    "atlas_debug_emission": textures[11],
+    "atlas_debug_specular": textures[12],
+    "whoa_diffuse": textures[13],
+    "whoa_specular": textures[14],
+    "whoa_emission": textures[15],
+    "font_atlas": textures[16],
+    "button_atlas": textures[17],
+    "ship_a_diffuse": textures[18],
+    "ship_a_specular": textures[19],
+    "ship_a_emission": textures[20],
 }
 
 
@@ -606,23 +610,166 @@ debug_ship_orders = [
 ]
 
 spaceship_parameters = {
-    'number_of_sides': 8,
+    'number_of_sides': 4,
     'number_of_segments': 10,
     'transform_x': 1.0,
     'transform_z': 2.0,
     'scale': 3.3,
-    'diffuse': texture_dictionary['ship_a_diffuse'],
-    'specular': texture_dictionary['ship_a_specular'],
-    'emission': texture_dictionary['ship_a_emission'],
+    # 'diffuse': texture_dictionary['ship_a_diffuse'],
+    # 'specular': texture_dictionary['ship_a_specular'],
+    # 'emission': texture_dictionary['ship_a_emission'],
     # 'diffuse': texture_dictionary['spaceship_diffuse'],
     # 'specular': texture_dictionary['spaceship_specular'],
     # 'emission': texture_dictionary['spaceship_emission'],
-    # 'diffuse': texture_dictionary['whoa_diffuse'],
-    # 'specular': texture_dictionary['whoa_specular'],
-    # 'emission': texture_dictionary['whoa_emission'],
+    'diffuse': texture_dictionary['whoa_diffuse'],
+    'specular': texture_dictionary['whoa_specular'],
+    'emission': texture_dictionary['whoa_emission'],
     'position': [0.0, 0.0, 0.0],
     'length_of_segment': 10,
 }
+
+def update_spaceship_parameters(key, value):
+    spaceship_parameters[key] = value
+
+
+def increase_light_brightness():
+    ambient_current = my_plc.ambient[0]
+    ambient_current = min(ambient_current + 0.1, 1.0)
+    my_plc.ambient = [ambient_current] * 3
+
+def decrease_light_brightness():
+    ambient_current = my_plc.ambient[0]
+    ambient_current = max(ambient_current - 0.1, 0.0)
+    my_plc.ambient = [ambient_current] * 3
+
+def increase_specular_brightness():
+    specular_current = my_plc.specular[0]
+    specular_current = min(specular_current + 0.1, 1.0)
+    my_plc.specular = [specular_current] * 3
+
+def decrease_specular_brightness():
+    specular_current = my_plc.specular[0]
+    specular_current = max(specular_current - 0.1, 0.0)
+    my_plc.specular = [specular_current] * 3
+
+def increase_diffuse_brightness():
+    diffuse_current = my_plc.diffuse[0]
+    diffuse_current = min(diffuse_current + 0.1, 1.0)
+    my_plc.diffuse = [diffuse_current] * 3
+
+def decrease_diffuse_brightness():
+    diffuse_current = my_plc.diffuse[0]
+    diffuse_current = max(diffuse_current - 0.1, 0.0)
+    my_plc.diffuse = [diffuse_current] * 3
+
+def increase_ship_sides(display):
+    MAX_SIDES = 10
+    sides = spaceship_parameters['number_of_sides']
+    if sides == MAX_SIDES:
+        return
+    sides += 1
+    update_spaceship_parameters(key='number_of_sides', value=sides)
+    generate_new_ship()
+
+    display.update_text(text=str(int(display.text_box.text) + 1))
+
+def decrease_ship_sides(display):
+    MIN_SIDES = 3
+    sides = spaceship_parameters['number_of_sides']
+    if sides == MIN_SIDES:
+        return
+    sides -= 1
+    update_spaceship_parameters(key='number_of_sides', value=sides)
+    generate_new_ship()
+    display.update_text(text=str(int(display.text_box.text) - 1))
+
+
+def increase_ship_segments(display=None):
+    MAX_SEGMENTS = 20
+    segments = spaceship_parameters['number_of_segments']
+    if segments == MAX_SEGMENTS:
+        return
+    segments += 1
+    update_spaceship_parameters(key='number_of_segments', value=segments)
+    generate_new_ship()
+    display.update_text(text=str(int(display.text_box.text) + 1))
+
+def decrease_ship_segments(display=None):
+    MIN_SEGMENTS = 1
+    segments = spaceship_parameters['number_of_segments']
+    if segments == MIN_SEGMENTS:
+        return
+    segments -= 1
+    update_spaceship_parameters(key='number_of_segments', value=segments)
+    generate_new_ship()
+    display.update_text(text=str(int(display.text_box.text) - 1))
+
+def increase_ship_segment_length(display=None):
+    MAX_LENGTH = 60.0
+    length = spaceship_parameters['length_of_segment']
+    if length >= MAX_LENGTH:
+        return
+    delta= 0.5
+    length += delta
+    update_spaceship_parameters(key='length_of_segment', value=length)
+    generate_new_ship()
+    display.update_text(text=str(round(float(display.text_box.text) + delta, 2)))
+
+def decrease_ship_segment_length(display=None):
+    MIN_LENGTH = 4.5
+    length = spaceship_parameters['length_of_segment']
+    print('length=', length)
+    if length <= MIN_LENGTH:
+        return
+    delta = 0.5
+    length -= delta
+    update_spaceship_parameters(key='length_of_segment', value=length)
+    generate_new_ship()
+    display.update_text(text=str(round(float(display.text_box.text) - delta, 2)))
+
+def increase_ship_x_scaling(display=None):
+    MAX_SCALE = 10.0
+    x_scale = spaceship_parameters['transform_x']
+    if x_scale >= MAX_SCALE:
+        return
+    delta = .1
+    x_scale += delta
+    update_spaceship_parameters(key='transform_x', value=x_scale)
+    generate_new_ship()
+    display.update_text(text=str(round(float(display.text_box.text) + delta, 2)))
+
+def decrease_ship_x_scaling(display=None):
+    MIN_SCALE = 0.1
+    x_scale = spaceship_parameters['transform_x']
+    if x_scale <= MIN_SCALE:
+        return
+    delta = .1
+    x_scale -= delta
+    update_spaceship_parameters(key='transform_x', value=x_scale)
+    generate_new_ship()
+    display.update_text(text=str(round(float(display.text_box.text) - delta, 2)))
+
+def increase_ship_z_scaling(display=None):
+    MAX_SCALE = 10.0
+    z_scale = spaceship_parameters['transform_z']
+    if z_scale >= MAX_SCALE:
+        return
+    delta = .1
+    z_scale += delta
+    update_spaceship_parameters(key='transform_z', value=z_scale)
+    generate_new_ship()
+    display.update_text(text=str(round(float(display.text_box.text) + delta, 2)))
+
+def decrease_ship_z_scaling(display=None):
+    MIN_SCALE = 0.1
+    z_scale = spaceship_parameters['transform_z']
+    if z_scale <= MIN_SCALE:
+        return
+    delta = .1
+    z_scale -= delta
+    update_spaceship_parameters(key='transform_z', value=z_scale)
+    generate_new_ship()
+    display.update_text(text=str(round(float(display.text_box.text) - delta, 2)))
 
 
 """Texture Coordinate Debugging Models"""
@@ -700,9 +847,31 @@ my_fps = FPSCounter.FPSCounter(frame_interval=300.0, mute=True)
 meshes = []
 meshes += ships
 
+def increase_seed():
+    global seed
+    seed += 1
+def decrease_seed():
+    global seed
+    seed -= 1
+
+def generate_next_ship(display=None):
+    global seed
+    increase_seed()
+    generate_new_ship()
+    if display:
+        display.update_text(text='seed: ' + str(seed))
+
+
+def generate_previous_ship(display=None):
+    global seed
+    decrease_seed()
+    generate_new_ship()
+    if display:
+        display.update_text(text='seed: ' + str(seed))
 
 def generate_new_ship():
     global spaceship
+    global seed
     spaceship = primatives.Spaceship(
         shader=shader,
         diffuse=spaceship_parameters['diffuse'],
@@ -719,169 +888,659 @@ def generate_new_ship():
         length_of_segment=spaceship_parameters['length_of_segment'],
         radius=3.0,
         scale=spaceship_parameters['scale'],
+        seed=seed
 
     )
     ships[0].model = spaceship
 
 
-from GUI import Element, GUI, Character, TextBox
-
-# test_gui = Element(position=(-.75, -0.75), scale=(0.25, 0.25), texture=texture_dictionary['whoa_diffuse'], atlas_size=2, atlas_coordinate=3)
-text_boxes = []
+"""GUI CREATION"""
 test_gui = GUI(screen_size=(WIDTH, HEIGHT))
-
-test_gui.add_button(
+test_gui.add_text_element(
     shader=None,
-    position=(-0.5, 0.5),
-    position_mode='center',
-    scale=(0.5, 0.5),
+    position=(0.7, 0.7),
+    scale=(0.25, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
-    atlas_coordinate=(2, 3),
-    click_function=None,
-    context_id='lorem',
-    context_status=False,
-    color=(1.0, 1.0, 1.0, 1.0)
-)
-text_button = test_gui.buttons[0]
-text_button.add_text_box(
-    texture=texture_dictionary['font_atlas'],
-    font_size=0.35,
-    color=(1.0, 1.0, 1.0, 1.0),
-    centered=True,
-    text='Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque in aliquam elit. Duis non eros augue.',
-)
-
-test_gui.add_button(
-    shader=None,
-    position=(0.75, 0.80),
-    scale=(0.32, 0.05),
-    texture=texture_dictionary['button_atlas'],
-    atlas_size=2,
-    atlas_coordinate=(2, 1),
-    click_function=generate_new_ship,
+    atlas_coordinate=2,
     context_id='button',
     context_status=False,
-    color=(1.0, 1.0, 1.0, 1.0)
-)
-text_button = test_gui.buttons[1]
-text_button.add_text_box(
-    texture=texture_dictionary['font_atlas'],
+    font_texture=texture_dictionary['font_atlas'],
     font_size=0.35,
-    color=(1.0, 1.0, 1.0, 1.0),
-    text='Generate New Ship'
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='Texture',
 )
-
-test_gui.add_button(
+test_gui.add_text_button(
     shader=None,
-    position=(0.80, 0.70),
-    scale=(0.22, 0.05),
+    position=(0.9, 0.70),
+    scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=(2, 1),
     click_function=cycle_ship_texture,
     context_id='button',
     context_status=False,
-    color=(1.0, 1.0, 1.0, 1.0)
-)
-text_button = test_gui.buttons[2]
-text_button.add_text_box(
-    texture=texture_dictionary['font_atlas'],
-    font_size=0.35,
     color=(1.0, 1.0, 1.0, 1.0),
-    text='Next Texture'
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='+',
 )
-test_gui.add_button(
+test_gui.add_text_button(
     shader=None,
-    position=(0.85, 0.60),
-    scale=(0.12, 0.05),
+    position=(0.5, 0.70),
+    scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=(2, 1),
-    click_function=test_gui.switch_context_status,
+    click_function=cycle_ship_texture,
+    forward=False,
     context_id='button',
     context_status=False,
-    click_function_context_id='button',
-    click_function_status_status=False,
-    color=(1.0, 1.0, 1.0, 1.0)
-)
-text_button = test_gui.buttons[3]
-text_button.add_text_box(
-    texture=texture_dictionary['font_atlas'],
-    font_size=0.35,
     color=(1.0, 1.0, 1.0, 1.0),
-    text='Close'
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='-',
 )
 
-test_gui.add_button(
+test_gui.add_text_button(
     shader=None,
-    position=(0.85, 0.90),
+    position=(0.85, 0.95),
     scale=(0.12, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=(2, 1),
-    click_function=test_gui.switch_context_status,
+    click_function=test_gui.toggle_context_status,
     context_id='context_on',
     context_status=True,
     click_function_context_id='button',
-    click_function_status_status=True,
-    color=(1.0, 1.0, 1.0, 1.0)
-)
-text_button = test_gui.buttons[4]
-text_button.add_text_box(
-    texture=texture_dictionary['font_atlas'],
-    font_size=0.35,
     color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
     text='Options',
 )
 
-def change_text(text_box):
-    """
-    button-function for changing the text of a text box
-    :param text_box:
-    :return:
-    """
-    if text_box:
-        text_box.update_text(text='wow, we changed the text', color=(1.0, 0.0, 0.0, 1.0))
-    else:
-        print(f'No textbox in change_text!')
-# """Text Rendering"""
-# test_char = TextBox(
-#     shader=None,
-#     texture=texture_dictionary['font_atlas'],
-#     position=(-1.0, 1.0),
-#     scale=(0.5, 0.5),
-#     screen_size=(WIDTH, HEIGHT),
-#     context_id='default',
-#     text='Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
-#     font_size=0.25,
-#     width=1.5,
-#     color=(0.8, 0.3, 0.25, 1.0),
-# )
-# test_gui.add_button(
-#     shader=None,
-#     position=(0.0, 0.0),
-#     scale=(0.25, 0.25),
-#     texture=texture_dictionary['whoa_diffuse'],
-#     atlas_size=2,
-#     atlas_coordinate=(2, 1),
-#     click_function=change_text,
-#     context_status=True,
-#     click_function_text_box=text_button.text_box,
-# )
+test_gui.add_text_element(
+    shader=None,
+    position=(-0.18, 0.83),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=2,
+    context_id='ship_settings',
+    context_status=False,
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='4',
+)
+#todo refactor this.  Need way to access text/element we want to update
+displayer = test_gui.elements[-1]
+test_gui.add_text_button(
+    shader=None,
+    position=(-0.28, 0.83),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=increase_ship_sides,
+    display=displayer,
+    context_id='ship_settings',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='+',
+)
+test_gui.add_text_button(
+    shader=None,
+    position=(-0.38, 0.83),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=decrease_ship_sides,
+    display=displayer,
+    context_id='ship_settings',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='-',
+)
+test_gui.add_text_element(
+    shader=None,
+    # position=(-0.5, -0.0),
+    position=(-0.78, 0.83), #-.28, +0.83
+    scale=(0.25, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=2,
+    context_id='ship_settings',
+    context_status=False,
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='Sides',
+)
 
+test_gui.add_text_element(
+    shader=None,
+    position=(-0.18, 0.73),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=2,
+    context_id='ship_settings',
+    context_status=False,
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='10',
+)
+#todo refactor this.  Need way to access text/element we want to update
+displayer = test_gui.elements[-1]
+test_gui.add_text_button(
+    shader=None,
+    position=(-0.38, .73),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=decrease_ship_segments,
+    display=displayer,
+    context_id='ship_settings',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='-',
+)
+test_gui.add_text_button(
+    shader=None,
+    position=(-0.28, 0.73),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=increase_ship_segments,
+    display=displayer,
+    context_id='ship_settings',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='+',
+)
+test_gui.add_text_element(
+    shader=None,
+    position=(-0.78, 0.73),
+    scale=(0.25, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=2,
+    context_id='ship_settings',
+    context_status=False,
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='Segments',
+)
+
+
+test_gui.add_text_element(
+    shader=None,
+    position=(-0.15, 0.63),
+    scale=(0.08, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=2,
+    context_id='ship_settings',
+    context_status=False,
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='10.0',
+)
+#todo refactor this.  Need way to access text/element we want to update
+displayer = test_gui.elements[-1]
+test_gui.add_text_element(
+    shader=None,
+    position=(-0.78,  0.63),
+    scale=(0.25, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=2,
+    context_id='ship_settings',
+    context_status=False,
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='Length Scale',
+)
+test_gui.add_text_button(
+    shader=None,
+    position=(-0.28,  0.63),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=increase_ship_segment_length,
+    display=displayer,
+    context_id='ship_settings',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='+',
+)
+test_gui.add_text_button(
+    shader=None,
+    position=(-0.38,  0.63),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=decrease_ship_segment_length,
+    display=displayer,
+    context_id='ship_settings',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='-',
+)
+
+test_gui.add_text_element(
+    shader=None,
+    position=(-0.78, 0.53),
+    scale=(0.25, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=2,
+    context_id='ship_settings',
+    context_status=False,
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='Height Scale',
+)
+test_gui.add_text_element(
+    shader=None,
+    position=(-0.13000000000000003, 0.53),
+    scale=(0.15, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=2,
+    context_id='ship_settings',
+    context_status=False,
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='1.0',
+)
+#todo refactor this.  Need way to access text/element we want to update
+displayer = test_gui.elements[-1]
+test_gui.add_text_button(
+    shader=None,
+    position=(-0.38, 0.53),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=decrease_ship_x_scaling,
+    display=displayer,
+    context_id='ship_settings',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='-',
+)
+
+test_gui.add_text_button(
+    shader=None,
+    position=(-0.28, 0.53),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=increase_ship_x_scaling,
+    display=displayer,
+    context_id='ship_settings',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='+',
+)
+
+
+
+test_gui.add_text_element(
+    shader=None,
+    position=(-0.78, 0.42999999999999994),
+    scale=(0.25, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=2,
+    context_id='ship_settings',
+    context_status=False,
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='Width Scale',
+)
+test_gui.add_text_element(
+    shader=None,
+    position=(-0.13000000000000003, 0.42999999999999994),
+    scale=(0.15, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=2,
+    context_id='ship_settings',
+    context_status=False,
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='2.0',
+)
+#todo refactor this.  Need way to access text/element we want to update
+displayer = test_gui.elements[-1]
+test_gui.add_text_button(
+    shader=None,
+    position=(-0.38, 0.42999999999999994),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=decrease_ship_z_scaling,
+    display=displayer,
+    context_id='ship_settings',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='-',
+)
+
+test_gui.add_text_button(
+    shader=None,
+    position=(-0.28, 0.42999999999999994),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=increase_ship_z_scaling,
+    display=displayer,
+    context_id='ship_settings',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='+',
+)
+
+test_gui.add_text_element(
+    shader=None,
+    position=(-0.90, 0.95),
+    scale=(0.15, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=2,
+    context_id='fps',
+    context_status=True,
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='0.0',
+)
+#todo refactor this.  Need way to access text/element we want to update
+display_fps = test_gui.elements[-1]
+
+
+test_gui.add_text_button(
+    shader=None,
+    position=(-0.55, 0.95),
+    scale=(0.22, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=test_gui.toggle_context_status,
+    context_id='context_on',
+    context_status=True,
+    click_function_context_id='ship_settings',
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='Ship Settings',
+)
+
+test_gui.add_text_element(
+    shader=None,
+    position=(0.75, 0.82),
+    scale=(0.20, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=2,
+    context_id='button',
+    context_status=False,
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='seed: ' + str(seed),
+)
+#todo refactor this.  Need way to access text/element we want to update
+displayer = test_gui.elements[-1]
+test_gui.add_text_button(
+    shader=None,
+    position=(0.95, 0.82),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=generate_next_ship,
+    display=displayer,
+    context_id='button',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='+',
+)
+
+test_gui.add_text_button(
+    shader=None,
+    position=(0.50, 0.82),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=generate_previous_ship,
+    display=displayer,
+    context_id='button',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='-',
+)
+
+
+test_gui.add_text_element(
+    shader=None,
+    position=(0.75, 0.62),
+    scale=(0.20, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=2,
+    context_id='button',
+    context_status=False,
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='Ambient',
+)
+displayer = test_gui.elements[-1]
+test_gui.add_text_button(
+    shader=None,
+    position=(0.95, 0.62),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=increase_light_brightness,
+    context_id='button',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='+',
+)
+
+test_gui.add_text_button(
+    shader=None,
+    position=(0.50, 0.62),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=decrease_light_brightness,
+    context_id='button',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='-',
+)
+
+#Specular
+test_gui.add_text_element(
+    shader=None,
+    position=(0.75, 0.50),
+    scale=(0.20, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=2,
+    context_id='button',
+    context_status=False,
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='Specular',
+)
+displayer = test_gui.elements[-1]
+test_gui.add_text_button(
+    shader=None,
+    position=(0.95, 0.50),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=increase_specular_brightness,
+    context_id='button',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='+',
+)
+
+test_gui.add_text_button(
+    shader=None,
+    position=(0.50, 0.50),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=decrease_specular_brightness,
+    context_id='button',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='-',
+)
+
+#Specular
+test_gui.add_text_element(
+    shader=None,
+    position=(0.75, 0.40),
+    scale=(0.20, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=2,
+    context_id='button',
+    context_status=False,
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='Diffuse',
+)
+displayer = test_gui.elements[-1]
+test_gui.add_text_button(
+    shader=None,
+    position=(0.95, 0.40),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=increase_diffuse_brightness,
+    context_id='button',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='+',
+)
+
+test_gui.add_text_button(
+    shader=None,
+    position=(0.50, 0.40),
+    scale=(0.05, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=decrease_diffuse_brightness,
+    context_id='button',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='-',
+)
+
+
+#must call as final setup of GUI
 test_gui.build_elements_list()
-
-
-
-
-
 
 
 while not glfw.window_should_close(window):
     glfw.poll_events()
     do_movement(speed=100)
-    my_fps.update()
+    fps = my_fps.update()
+    display_fps.update_text(text=str(round(my_fps.get_fps(), 1)))
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
     view = active_camera.get_view_matrix()
@@ -896,6 +1555,7 @@ while not glfw.window_should_close(window):
     #     shape.draw(view=view)
 
     """Mouse Hover on GUI"""
+    #todo: mouse hover is very expensive!
     if use_follow_cam:
         test_gui.button_update(position_mouse=glfw.get_cursor_pos(window), left_click=False, right_click=False)
 
@@ -955,15 +1615,8 @@ while not glfw.window_should_close(window):
         window_as_PIL_image = Image.fromarray(window_as_numpy_arr)
         images.append(window_as_PIL_image)
 
-
-
     """GUI TESTING"""
     test_gui.draw()
-    for text_box in text_boxes:
-        text_box.draw()
-    """Text Rendering"""
-    # test_char.draw()
-
 
     glUseProgram(shader)
 
