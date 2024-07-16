@@ -74,7 +74,6 @@ void main()
 }
 """
 
-
 fragment_src = """
 #version 330 core
 out vec4 frag_color;
@@ -226,11 +225,13 @@ vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 frag_pos, vec3 view_dir)
 }
 """
 
+
 class PrimativeMesh():
     """
     abstract parent of all primative meshes
         -draws quad by default
     """
+
     def __init__(self,
                  shader,
                  # material properties
@@ -300,12 +301,12 @@ class PrimativeMesh():
         # rotate, translate, and scale
         model = glm.mat4(1.0)
         model = glm.translate(model, self.position)
-        #todo: this rotation smells fishy
+        # todo: this rotation smells fishy
         model = glm.rotate(model, self.rotation_magnitude.x, self.rotation_axis)
         model = glm.scale(model, self.scale)
         glUniformMatrix4fv(self.model_loc, 1, GL_FALSE, glm.value_ptr(model))
 
-        glDrawArrays(GL_TRIANGLES, 0, int(len(self.vertices)/3))
+        glDrawArrays(GL_TRIANGLES, 0, int(len(self.vertices) / 3))
 
     def set_diffuse(self, diffuse):
         self.diffuse = diffuse
@@ -338,7 +339,7 @@ class PrimativeMesh():
         """
         self.rotation_magnitude[axis] = speed * glfw.get_time()
 
-    #todo: This function already exists in Face and is used nowhere.
+    # todo: This function already exists in Face and is used nowhere.
     # def generate_texture_coordinates_polygonal(self, sides, reverse=True):
     #     """
     #     A new means of generating texture coordinates for any (regular) polygon.
@@ -361,7 +362,7 @@ class PrimativeMesh():
     #         texture_coordinates.reverse()
     #     return texture_coordinates
 
-    def extrude_from_other_face(self, other, direction = [0.0, 1.0, 0.0], distance=1.0, flip_base=True, radius=1.0):
+    def extrude_from_other_face(self, other, direction=[0.0, 1.0, 0.0], distance=1.0, flip_base=True, radius=1.0):
         """
         just copy outer vertices, then run outer_Vertices_to_vertices()
         Very different from (and likely outmoding) Face's method of same name
@@ -375,7 +376,9 @@ class PrimativeMesh():
         face_extruded = Face()
         face_extruded.outer_vertices = other.outer_vertices.copy()
         face_extruded.calculate_sides()
-        face_extruded.vertices = self.outer_vertices_to_vertices(face=face_extruded, number_of_sides=face_extruded.sides, reverse_texture_coords=True)
+        face_extruded.vertices = self.outer_vertices_to_vertices(face=face_extruded,
+                                                                 number_of_sides=face_extruded.sides,
+                                                                 reverse_texture_coords=True)
         face_extruded.normal = face_extruded.calculate_normal()
         if flip_base:
             pass
@@ -481,8 +484,6 @@ class PrimativeMesh():
         face.vertices = face.outer_vertices_to_vertices(reverse_texture_coordinates=True)
         return face
 
-
-
     def generate_outer_vertices(
             self,
             number_of_sides=4,
@@ -501,8 +502,8 @@ class PrimativeMesh():
             initial_angle = pi / number_of_sides
         if type(radius) is list:
             for i in range(1, int(number_of_sides) + 1):
-                x_coord = cos(initial_angle + angle_of_rotation * -i) * radius[i-1] * transform_x
-                z_coord = sin(initial_angle + angle_of_rotation * -i) * radius[i-1] * transform_z
+                x_coord = cos(initial_angle + angle_of_rotation * -i) * radius[i - 1] * transform_x
+                z_coord = sin(initial_angle + angle_of_rotation * -i) * radius[i - 1] * transform_z
                 outer_vertices += [x_coord, 0.0, z_coord]
         else:
             for i in range(1, int(number_of_sides) + 1):
@@ -533,16 +534,16 @@ class PrimativeMesh():
         test_cut_face = Face()
         original_outer_vertices = list_to_vec3_list(original_face.outer_vertices)
         for i in range(depth):
-            #1. cut a similar polygon from the starting face
+            # 1. cut a similar polygon from the starting face
             cut_outer_vertices = []
             for point in original_outer_vertices:
                 mean_outer_point = calculate_mean_point(original_outer_vertices)
                 border_direction = glm.normalize(mean_outer_point - point)
-                border_diagonal_length = radius*border_sizes[i]
-                cut_point = point + border_direction*border_diagonal_length
+                border_diagonal_length = radius * border_sizes[i]
+                cut_point = point + border_direction * border_diagonal_length
                 cut_outer_vertices.append(cut_point)
 
-            #2. build new face uses new outer vertices
+            # 2. build new face uses new outer vertices
             test_cut_face.outer_vertices = vec3_list_to_list(cut_outer_vertices)
             test_cut_face.calculate_sides()
             test_cut_face.calculate_outer_vertices_as_vec3()
@@ -554,17 +555,17 @@ class PrimativeMesh():
                 )
             else:
                 face_normal = direction
-            test_cut_face.offset_outer_vertices(offset=face_normal*bevel_depths[i])
+            test_cut_face.offset_outer_vertices(offset=face_normal * bevel_depths[i])
             test_cut_face.vertices = test_cut_face.outer_vertices_to_vertices(
-                                reverse_texture_coordinates=True,
-                                regular=False,
+                reverse_texture_coordinates=True,
+                regular=False,
             )
             if i == depth - 1:
                 updated_faces.append(test_cut_face)
-            #3. stitch old faces to new face
+            # 3. stitch old faces to new face
             updated_faces += self.stitch_faces(original_face, test_cut_face, test_cut_face.sides)
 
-            #4. new face becomes "original" in preperation for next loop
+            # 4. new face becomes "original" in preperation for next loop
             original_face.outer_vertices = test_cut_face.outer_vertices
             original_face.vertices = test_cut_face.vertices
             original_face.calculate_radius()
@@ -573,7 +574,7 @@ class PrimativeMesh():
 
         return updated_faces
 
-    def bevel_polygon_corner(self, face, subject_vertex_index=0, bevel_ratio = 0.5):
+    def bevel_polygon_corner(self, face, subject_vertex_index=0, bevel_ratio=0.5):
         """
         Takes in a face, transforms outer vertices of polygon by beveling a corner
             -use case: base polygon before excude
@@ -586,8 +587,8 @@ class PrimativeMesh():
         number_of_sides = len(older_outer_vertices)
         forward_vertex = older_outer_vertices[get_next_index(number_of_sides, subject_vertex_index)]
         backward_vertex = older_outer_vertices[get_previous_index(number_of_sides, subject_vertex_index)]
-        forward_new_point = subject_vertex - bevel_ratio*(subject_vertex - forward_vertex)
-        backward_new_point = subject_vertex - bevel_ratio*(subject_vertex - backward_vertex)
+        forward_new_point = subject_vertex - bevel_ratio * (subject_vertex - forward_vertex)
+        backward_new_point = subject_vertex - bevel_ratio * (subject_vertex - backward_vertex)
 
         updated_outer_vertices = older_outer_vertices.copy()
         del updated_outer_vertices[subject_vertex_index]
@@ -619,7 +620,7 @@ class PrimativeMesh():
         num_sides = original_face.sides
         original_outer_vertices_as_vec3s = original_face.outer_vertices_vec3
 
-        new_triangles_outer_vertices=[]
+        new_triangles_outer_vertices = []
         for index, original_outer_vertex in enumerate(original_outer_vertices_as_vec3s):
             triangle_vertices = []
             next_index = index + 1
@@ -642,8 +643,7 @@ class PrimativeMesh():
         # return the N new quad faces
         return triangle_faces
 
-
-        #make n new triangular faces
+        # make n new triangular faces
 
     def divide_face_into_quads(self, original_face, center_point_offset=0.0):
         """
@@ -654,16 +654,16 @@ class PrimativeMesh():
         :return: 4 new faces
         """
 
-        #get normal of the face
+        # get normal of the face
         original_face.calculate_outer_vertices_as_vec3()
         original_face.normal = original_face.calculate_normal()
         original_normal = original_face.normal
-        #calculate center of original face
+        # calculate center of original face
         original_outer_vertices_as_vec3s = original_face.outer_vertices_vec3
         center_point = calculate_mean_point(original_outer_vertices_as_vec3s)
-        #adjust center by the normal and center_point_offset
+        # adjust center by the normal and center_point_offset
         center_point += original_normal * center_point_offset
-        #find the N midpoints (N = number of sides of face polygon)
+        # find the N midpoints (N = number of sides of face polygon)
         original_face.calculate_sides()
         num_sides = original_face.sides
         midpoints = [glm.vec3(0.0, 0.0, 0.0)] * num_sides
@@ -676,7 +676,7 @@ class PrimativeMesh():
                  original_outer_vertices_as_vec3s[index + overflowing_index]
                  ]
             )
-        #construct the N quads outer vertices.
+        # construct the N quads outer vertices.
         all_quads_outer_vertices = []
         for index, outer_point in enumerate(original_outer_vertices_as_vec3s):
             current_quad_outer_vertices = []
@@ -692,11 +692,11 @@ class PrimativeMesh():
             current_quad_outer_vertices = rotate_list(current_list=current_quad_outer_vertices, steps=-index)
             all_quads_outer_vertices.append(current_quad_outer_vertices)
 
-        #create N new faces (using outer vertices)
+        # create N new faces (using outer vertices)
         quad_faces = []
         for index in range(num_sides):
             quad_faces.append(Face())
-            #-convert vec3 outers into list outers
+            # -convert vec3 outers into list outers
             quad_faces[index].outer_vertices = vec3_list_to_list(all_quads_outer_vertices[index])
             quad_faces[index].outer_vertices_vec3 = all_quads_outer_vertices[index]
             # generate vertices of N new faces.
@@ -704,7 +704,7 @@ class PrimativeMesh():
             # (option) fix texture coords of N new faces
             # quad_faces[index].apply_hardset_quad_texture_coords(sides=4)
 
-        #return the N new quad faces
+        # return the N new quad faces
         return quad_faces
 
     def bezier_cut(self, face, intervals=0, offset=0):
@@ -729,20 +729,20 @@ class PrimativeMesh():
         even_odd_index = 0
         if intervals % 2 == 0:
             even_odd_index = 1
-            
-        #first triangle
+
+        # first triangle
         vertices_border.append(face.outer_vertices_vec3[0])
         vertices_border.append(face.outer_vertices_vec3[1])
         vertices_border.append(bezier_points[1])
 
-        midpoint = len(bezier_points)/2
+        midpoint = len(bezier_points) / 2
         midpoint_indices = [math.floor(midpoint), math.ceil(midpoint)]
         # for index, bezier_point in enumerate(bezier_points[1:midpoint_indices[1]+1]):
         for index, bezier_point in enumerate(bezier_points[1:midpoint_indices[even_odd_index]]):
             vertices_border.append(bezier_point)
             vertices_border.append(bezier_points[index + 2])
             vertices_border.append(face.outer_vertices_vec3[0])
-        #keystone_triangle (even vertices case)
+        # keystone_triangle (even vertices case)
         vertices_border.append(bezier_points[midpoint_indices[even_odd_index]])
         vertices_border.append(face.outer_vertices_vec3[3])
         vertices_border.append(face.outer_vertices_vec3[0])
@@ -764,15 +764,15 @@ class PrimativeMesh():
         face.vertices = proper_vertices
 
         """Now do the cut's vertices"""
-        #cut saved into a new face
+        # cut saved into a new face
         face_cut = Face()
-        face_cut.outer_vertices = vec3_list_to_list([point - original_face_normal*offset for point in bezier_points])
+        face_cut.outer_vertices = vec3_list_to_list([point - original_face_normal * offset for point in bezier_points])
         midpoint_base = calculate_mean_point([bezier_points[0], bezier_points[intervals + 1]])
         vertices_cut = []
-        for index, bezier_point in enumerate(bezier_points[:intervals+1]):
-            vertices_cut.append(midpoint_base - original_face_normal*offset)
-            vertices_cut.append(bezier_points[index+1] - original_face_normal*offset)
-            vertices_cut.append(bezier_point - original_face_normal*offset)
+        for index, bezier_point in enumerate(bezier_points[:intervals + 1]):
+            vertices_cut.append(midpoint_base - original_face_normal * offset)
+            vertices_cut.append(bezier_points[index + 1] - original_face_normal * offset)
+            vertices_cut.append(bezier_point - original_face_normal * offset)
         vertices_cut_proper = []
         for point in vertices_cut:
             current_vertex = Vertex()
@@ -804,17 +804,25 @@ class PrimativeMesh():
 
             if side == number_of_faces - 1:
                 face.outer_vertices = [
-                    face_b.outer_vertices[side * 3 + 0], face_b.outer_vertices[side * 3 + 1], face_b.outer_vertices[side * 3 + 2],
-                    face_a.outer_vertices[side * 3 + 0], face_a.outer_vertices[side * 3 + 1], face_a.outer_vertices[side * 3 + 2],
-                    face_a.outer_vertices[0 * 3 + 0], face_a.outer_vertices[0 * 3 + 1],face_a.outer_vertices[0 * 3 + 2],
-                    face_b.outer_vertices[0 * 3 + 0], face_b.outer_vertices[0 * 3 + 1],face_b.outer_vertices[0 * 3 + 2],
+                    face_b.outer_vertices[side * 3 + 0], face_b.outer_vertices[side * 3 + 1],
+                    face_b.outer_vertices[side * 3 + 2],
+                    face_a.outer_vertices[side * 3 + 0], face_a.outer_vertices[side * 3 + 1],
+                    face_a.outer_vertices[side * 3 + 2],
+                    face_a.outer_vertices[0 * 3 + 0], face_a.outer_vertices[0 * 3 + 1],
+                    face_a.outer_vertices[0 * 3 + 2],
+                    face_b.outer_vertices[0 * 3 + 0], face_b.outer_vertices[0 * 3 + 1],
+                    face_b.outer_vertices[0 * 3 + 2],
                 ]
             else:
                 face.outer_vertices = [
-                    face_b.outer_vertices[side * 3 + 0], face_b.outer_vertices[side * 3 + 1], face_b.outer_vertices[side * 3 + 2],
-                    face_a.outer_vertices[side * 3 + 0], face_a.outer_vertices[side * 3 + 1], face_a.outer_vertices[side * 3 + 2],
-                    face_a.outer_vertices[side * 3 + 3], face_a.outer_vertices[side * 3 + 4], face_a.outer_vertices[side * 3 + 5],
-                    face_b.outer_vertices[side * 3 + 3], face_b.outer_vertices[side * 3 + 4], face_b.outer_vertices[side * 3 + 5],
+                    face_b.outer_vertices[side * 3 + 0], face_b.outer_vertices[side * 3 + 1],
+                    face_b.outer_vertices[side * 3 + 2],
+                    face_a.outer_vertices[side * 3 + 0], face_a.outer_vertices[side * 3 + 1],
+                    face_a.outer_vertices[side * 3 + 2],
+                    face_a.outer_vertices[side * 3 + 3], face_a.outer_vertices[side * 3 + 4],
+                    face_a.outer_vertices[side * 3 + 5],
+                    face_b.outer_vertices[side * 3 + 3], face_b.outer_vertices[side * 3 + 4],
+                    face_b.outer_vertices[side * 3 + 5],
                 ]
             # face.vertices = self.outer_vertices_to_vertices(face, 4)
             face.vertices = face.outer_vertices_to_vertices(reverse_texture_coordinates=True)
@@ -841,13 +849,17 @@ class PrimativeMesh():
 
         # calculate the start and end points of the center line
         center_line_start_point = (operatable_outer_vertices_vec3[1]
-            + start_point[0] * (operatable_outer_vertices_vec3[0] - operatable_outer_vertices_vec3[1])
-            + start_point[1] * (operatable_outer_vertices_vec3[2] - operatable_outer_vertices_vec3[1])
-            + vertical_offset * face.normal)
+                                   + start_point[0] * (
+                                               operatable_outer_vertices_vec3[0] - operatable_outer_vertices_vec3[1])
+                                   + start_point[1] * (
+                                               operatable_outer_vertices_vec3[2] - operatable_outer_vertices_vec3[1])
+                                   + vertical_offset * face.normal)
         center_line_end_point = (operatable_outer_vertices_vec3[1]
-            + end_point[0]*(operatable_outer_vertices_vec3[0] - operatable_outer_vertices_vec3[1])
-            + end_point[1]*(operatable_outer_vertices_vec3[2] - operatable_outer_vertices_vec3[1])
-            + vertical_offset * face.normal)
+                                 + end_point[0] * (
+                                             operatable_outer_vertices_vec3[0] - operatable_outer_vertices_vec3[1])
+                                 + end_point[1] * (
+                                             operatable_outer_vertices_vec3[2] - operatable_outer_vertices_vec3[1])
+                                 + vertical_offset * face.normal)
 
         # generate outer vertices of new quad faces
         roof_faces = []
@@ -862,8 +874,8 @@ class PrimativeMesh():
             current_outer_vertices.append(base_points[3])
             current_outer_vertices.append(original_outer_vertices_as_vec3s[base_points[1]])
             new_face = Face()
-            new_face.outer_vertices_vec3=current_outer_vertices
-            new_face.outer_vertices=vec3_list_to_list(current_outer_vertices)
+            new_face.outer_vertices_vec3 = current_outer_vertices
+            new_face.outer_vertices = vec3_list_to_list(current_outer_vertices)
             new_face.vertices = new_face.outer_vertices_to_vertices()
             new_face.apply_hardset_quad_texture_coords()
             roof_faces.append(new_face)
@@ -875,10 +887,10 @@ class PrimativeMesh():
             current_outer_vertices.append(triangle_base_points[i][2])
             current_outer_vertices.append(original_outer_vertices_as_vec3s[triangle_base_points[i][1]])
             new_face = Face()
-            new_face.outer_vertices_vec3=current_outer_vertices
-            new_face.outer_vertices=vec3_list_to_list(current_outer_vertices)
+            new_face.outer_vertices_vec3 = current_outer_vertices
+            new_face.outer_vertices = vec3_list_to_list(current_outer_vertices)
             new_face.vertices = new_face.outer_vertices_to_vertices()
-            #todo:fix these triangle faces outer vertices
+            # todo:fix these triangle faces outer vertices
             new_face.apply_hardset_triangle_texture_coords()
             roof_faces.append(new_face)
 
@@ -896,27 +908,26 @@ class PrimativeMesh():
         operatable_outer_vertices = original_outer_vertices.copy()
         if widthwise:
             operatable_outer_vertices = rotate_list(current_list=operatable_outer_vertices, steps=3)
-            #todo: rotate back at the end -necc?
-        if subdivisions in (0,1):
+            # todo: rotate back at the end -necc?
+        if subdivisions in (0, 1):
             return [face]
-        
+
         updated_faces = []
-        #make sure original face has all required attributes
+        # make sure original face has all required attributes
         face.calculate_outer_vertices_as_vec3()
         face.normal = face.calculate_normal()
         original_normal = face.normal
         original_outer_vertices_as_vec3s = face.outer_vertices_vec3
         face.calculate_sides()
-        
-        #find the N-subdivisions points along the length sides
+
+        # find the N-subdivisions points along the length sides
         operatable_outer_vertices_vec3 = list_to_vec3_list(operatable_outer_vertices)
         side_top = [operatable_outer_vertices_vec3[0], operatable_outer_vertices_vec3[3]]
         side_bottom = [operatable_outer_vertices_vec3[1], operatable_outer_vertices_vec3[2]]
         outer_vertices_top = bezier_linear(points=side_top, intervals=subdivisions)
         outer_vertices_bottom = bezier_linear(points=side_bottom, intervals=subdivisions)
 
-
-        #generate outer vertices of new faces
+        # generate outer vertices of new faces
         subdivision_faces = []
         subdivision_index = 0
         while len(subdivision_faces) < subdivisions:
@@ -924,8 +935,8 @@ class PrimativeMesh():
             subdivision_outer_vertices = [
                 outer_vertices_top[subdivision_index],
                 outer_vertices_bottom[subdivision_index],
-                outer_vertices_bottom[subdivision_index+1],
-                outer_vertices_top[subdivision_index+1]
+                outer_vertices_bottom[subdivision_index + 1],
+                outer_vertices_top[subdivision_index + 1]
             ]
             subdivision_outer_vertices = rotate_list(current_list=subdivision_outer_vertices, steps=-1)
 
@@ -939,25 +950,27 @@ class PrimativeMesh():
         updated_faces += subdivision_faces
         return updated_faces
 
+
 class PrimativeMeshEmission(PrimativeMesh):
     """
     Version of primative mesh that redefines draw() method to allow for
     emission texture.
     """
+
     def __init__(
-        self,
-        shader,
-        # material properties
-        diffuse,
-        specular,
-        emission,
-        shininess=32.0,
-        # mesh properties
-        dimensions=[5.0, 5.0],
-        position=[0.0, 0.0, 0.0],
-        rotation_magnitude=(0.0, 0.0, 0.0),
-        rotation_axis=(0.0, 0.0, 1.0),
-        scale=(1.0, 1.0, 1.0),
+            self,
+            shader,
+            # material properties
+            diffuse,
+            specular,
+            emission,
+            shininess=32.0,
+            # mesh properties
+            dimensions=[5.0, 5.0],
+            position=[0.0, 0.0, 0.0],
+            rotation_magnitude=(0.0, 0.0, 0.0),
+            rotation_axis=(0.0, 0.0, 1.0),
+            scale=(1.0, 1.0, 1.0),
     ):
         super().__init__(
             shader=shader,
@@ -973,6 +986,7 @@ class PrimativeMeshEmission(PrimativeMesh):
             scale=glm.vec3(scale),
         )
         self.emission = emission
+
     def draw(self, view):
         glUseProgram(self.shader)
         glBindVertexArray(self.VAO)
@@ -997,10 +1011,13 @@ class PrimativeMeshEmission(PrimativeMesh):
 
     def set_diffuse(self, diffuse):
         self.diffuse = diffuse
+
     def set_specular(self, specular):
         self.specular = specular
+
     def set_emission(self, emission):
         self.emission = emission
+
 
 class Spaceship(PrimativeMeshEmission):
     cardinal_directions = {
@@ -1013,26 +1030,26 @@ class Spaceship(PrimativeMeshEmission):
     }
 
     def __init__(
-        self,
-        shader,
-        # material properties
-        diffuse,
-        specular,
-        emission,
-        shininess=32.0,
-        # mesh properties
-        dimensions=[5.0, 5.0],
-        position=[0.0, 0.0, 0.0],
-        rotation_magnitude=0,
-        rotation_axis=glm.vec3([0.0, 0.0, 1.0]),
-        scale=glm.vec3([1.0, 1.0, 1.0]),
-        number_of_sides=4,
-        number_of_segments=4,
-        transform_x=1.0,
-        transform_z=1.0,
-        length_of_segment=1.0,
-        radius=1.0,
-        seed=1,
+            self,
+            shader,
+            # material properties
+            diffuse,
+            specular,
+            emission,
+            shininess=32.0,
+            # mesh properties
+            dimensions=[5.0, 5.0],
+            position=[0.0, 0.0, 0.0],
+            rotation_magnitude=0,
+            rotation_axis=glm.vec3([0.0, 0.0, 1.0]),
+            scale=glm.vec3([1.0, 1.0, 1.0]),
+            number_of_sides=4,
+            number_of_segments=4,
+            transform_x=1.0,
+            transform_z=1.0,
+            length_of_segment=1.0,
+            radius=1.0,
+            seed=1,
     ):
         self.number_of_sides = number_of_sides
         self.number_of_segments = number_of_segments
@@ -1055,6 +1072,7 @@ class Spaceship(PrimativeMeshEmission):
             rotation_axis=rotation_axis,
             scale=scale,
         )
+
     def generate_vertices(self):
         """
         Where the mesh is generated, vertex by vertex.
@@ -1075,7 +1093,7 @@ class Spaceship(PrimativeMeshEmission):
         radius_multiplier_current_segment = 1.0
         current_radius = self.radius
         MINIMUM_RADIUS = 2.5
-        MAXIMUM_RADIUS = 4.0 + self.number_of_segments*0.5
+        MAXIMUM_RADIUS = 4.0 + self.number_of_segments * 0.5
         for i in range(self.number_of_segments):
             face_extruded = Face()
             radius_multiplier_current_segment = self.determine_radius(
@@ -1084,8 +1102,8 @@ class Spaceship(PrimativeMeshEmission):
                 radius_multiplier_current_segment,
                 minimum_radius_multipler=0.5,
                 maximum_radius_multipler=2.0,
-                growth=1.0 + random()*3,
-                shrinkage=random()*0.5 + 0.5,
+                growth=1.0 + random() * 3,
+                shrinkage=random() * 0.5 + 0.5,
 
             )
             current_radius *= radius_multiplier_current_segment
@@ -1102,7 +1120,7 @@ class Spaceship(PrimativeMeshEmission):
             faces.append(face_extruded)
             faces_from_stitch = self.stitch_faces(
                 face_a=faces[i],
-                face_b=faces[i+1],
+                face_b=faces[i + 1],
                 number_of_faces=self.number_of_sides
             )
             segment_faces += faces_from_stitch
@@ -1120,26 +1138,27 @@ class Spaceship(PrimativeMeshEmission):
     def generate_thrusters(self, face):
         thruster_faces = self.bevel_cut(
             original_face=face,
-            bevel_depths=[self.length_of_segment*0.25, 0.0, self.length_of_segment*-0.5],
+            bevel_depths=[self.length_of_segment * 0.25, 0.0, self.length_of_segment * -0.5],
             border_sizes=[-0.25, 0.25, 0.5],
             depth=3
         )
 
-        #texturing
+        # texturing
         thruster_backend = thruster_faces.pop(-(self.number_of_sides + 1))
         thruster_backend.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=0)
         for face in thruster_faces:
             face.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=3)
 
         return thruster_faces + [thruster_backend]
+
     def generate_nose(self, face):
         faces_nose = []
         face_nose_tip = Face()
         face_nose_tip.extrude_from_other_face(
             other=face,
             direction=list(-face.calculate_normal()),
-            distance=self.length_of_segment * (0.25 + random()*1.25),
-            scale=random()*.2 + .1,
+            distance=self.length_of_segment * (0.25 + random() * 1.25),
+            scale=random() * .2 + .1,
         )
 
         faces_from_stitch = self.stitch_faces(
@@ -1155,13 +1174,13 @@ class Spaceship(PrimativeMeshEmission):
             reverse_texture_coordinates=True,
         )
 
-        #texturing
-        #todo:reenable
+        # texturing
+        # todo:reenable
         face_nose_tip.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=1)
         for face in faces_from_stitch:
             face.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=2)
 
-        #return new faces
+        # return new faces
         faces_nose += [face_nose_tip] + faces_from_stitch
         return faces_nose
 
@@ -1177,11 +1196,11 @@ class Spaceship(PrimativeMeshEmission):
     ):
 
         if i < floor(random() * number_of_segments):
-            radius_multiplier = min(growth*radius_multiplier, maximum_radius_multipler)
+            radius_multiplier = min(growth * radius_multiplier, maximum_radius_multipler)
         else:
             if radius_multiplier > 1.0:
                 radius_multiplier = 1.0
-            radius_multiplier = max(shrinkage*radius_multiplier, minimum_radius_multipler)
+            radius_multiplier = max(shrinkage * radius_multiplier, minimum_radius_multipler)
         return radius_multiplier
 
     # def add_detail_to_faces(self, faces_to_alter):
@@ -1319,23 +1338,18 @@ class Spaceship(PrimativeMeshEmission):
                         faces_altered=faces_altered,
                         index_segment=index_segment,
                         instructions_per_segment=instructions_per_segment,
-                        faces_paired=[faces_to_alter[index_side + index_segment*self.number_of_sides]],
+                        faces_paired=[faces_to_alter[index_side + index_segment * self.number_of_sides]],
                         index_instruction=index_side,
                     )
                     faces_altered += faces_altered_local
                     faces_unaltered += faces_unaltered_local
 
-
-        #todo: texturing should happen within detail-applying-functions.
+        # todo: texturing should happen within detail-applying-functions.
         # for face in faces_altered:
         #     face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
         for face in faces_unaltered:
             face.update_texture_coords_using_atlas_index(texture_atlas_index=0, texture_atlas_size=2)
         return faces_altered + faces_unaltered
-
-
-
-
 
         # faces_altered = []
         # for face in faces_to_alter:
@@ -1354,7 +1368,7 @@ class Spaceship(PrimativeMeshEmission):
 
     def add_detail_recursive_extrude(self, face, bevel_depths, border_sizes):
 
-        first_extrusion = self.extrude_and_stitch(face=face, scale=1.0, distance=floor(self.length_of_segment*0.25))
+        first_extrusion = self.extrude_and_stitch(face=face, scale=1.0, distance=floor(self.length_of_segment * 0.25))
         faces_updated = []
         for face_current in first_extrusion:
             faces_one_bevel = self.bevel_cut(
@@ -1373,7 +1387,7 @@ class Spaceship(PrimativeMeshEmission):
         local_faces_altered = self.bevel_cut(
             original_face=face,
             depth=1,
-            bevel_depths=[self.length_of_segment*0.2],
+            bevel_depths=[self.length_of_segment * 0.2],
             border_sizes=[0.0]
         )
         intake_index = 2
@@ -1398,12 +1412,12 @@ class Spaceship(PrimativeMeshEmission):
         return local_faces_altered + intake_faces_altered
 
     def detail_faces_by_instruction(
-        self,
-        faces_altered,
-        index_segment,
-        instructions_per_segment,
-        faces_paired,
-        index_instruction,
+            self,
+            faces_altered,
+            index_segment,
+            instructions_per_segment,
+            faces_paired,
+            index_instruction,
     ):
         local_faces_altered = []
         local_faces_unaltered = []
@@ -1435,7 +1449,8 @@ class Spaceship(PrimativeMeshEmission):
                     border_sizes=[0.25, 0.0],
                     depth=2,
                 )
-                faces_special_bevel[-5].update_texture_coords_using_atlas_index(texture_atlas_index=3, texture_atlas_size=2)
+                faces_special_bevel[-5].update_texture_coords_using_atlas_index(texture_atlas_index=3,
+                                                                                texture_atlas_size=2)
                 for face in faces_special_bevel[:-5]:
                     face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
                 for face in faces_special_bevel[-4:]:
@@ -1469,12 +1484,12 @@ class Spaceship(PrimativeMeshEmission):
                 depth=1,
             )
             faces_current_cubby[0].update_texture_coords_using_atlas_index(
-                texture_atlas_index=3, #todo: change to 1
+                texture_atlas_index=3,  # todo: change to 1
                 texture_atlas_size=2
             )
             for face in faces_current_cubby[1:]:
                 face.update_texture_coords_using_atlas_index(
-                    texture_atlas_index=2, #todo: change to 2
+                    texture_atlas_index=2,  # todo: change to 2
                     texture_atlas_size=2
                 )
             faces_altered_local += faces_current_cubby
@@ -1514,19 +1529,19 @@ class Polygon(PrimativeMesh):
     """
 
     def __init__(self,
-        shader,
-        diffuse,
-        specular,
-        shininess=32.0,
-        dimensions=[5.0, 5.0],
-        position=[0.0, 0.0, 0.0],
-        rotation_magnitude=0,
-        rotation_axis=glm.vec3([0.0, 0.0, 1.0]),
-        scale=glm.vec3([1.0, 1.0, 1.0]),
-        sides=3,
-        transform_x=1.0,
-        transform_z=1.0,
-     ):
+                 shader,
+                 diffuse,
+                 specular,
+                 shininess=32.0,
+                 dimensions=[5.0, 5.0],
+                 position=[0.0, 0.0, 0.0],
+                 rotation_magnitude=0,
+                 rotation_axis=glm.vec3([0.0, 0.0, 1.0]),
+                 scale=glm.vec3([1.0, 1.0, 1.0]),
+                 sides=3,
+                 transform_x=1.0,
+                 transform_z=1.0,
+                 ):
         self.sides = sides
         self.transform_x = transform_x
         self.transform_z = transform_z
@@ -1556,6 +1571,7 @@ class Polygon(PrimativeMesh):
             vertices,
             dtype=np.float32
         ).flatten()
+
 
 class PolygonIrregular(Polygon):
     def __init__(
@@ -1605,8 +1621,11 @@ class PolygonIrregular(Polygon):
             vertices,
             dtype=np.float32
         ).flatten()
+
+
 class QuadMesh(PrimativeMesh):
     pass
+
 
 class TriangleMesh(PrimativeMesh):
     """
@@ -1616,12 +1635,16 @@ class TriangleMesh(PrimativeMesh):
     def generate_vertices(self):
         top_vertex_angle = math.pi / 2.0
         return np.array([
-             self.dimensions[0]*math.cos(top_vertex_angle), self.dimensions[0]*math.sin(top_vertex_angle), 0.0, 1.0, 1.0, 0.0, 0.0, 1.0,
-             self.dimensions[0]*math.cos(top_vertex_angle + 2.0*math.pi/3.0),  self.dimensions[0]*math.sin(top_vertex_angle + 2.0*math.pi/3.0), 0.0, 0.0, 1.0, 0.0, 0.0, 1.0,
-             self.dimensions[0]*math.cos(top_vertex_angle + 4.0*math.pi/3.0),  self.dimensions[0]*math.sin(top_vertex_angle + 4.0*math.pi/3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-            ],
+            self.dimensions[0] * math.cos(top_vertex_angle), self.dimensions[0] * math.sin(top_vertex_angle), 0.0, 1.0,
+            1.0, 0.0, 0.0, 1.0,
+            self.dimensions[0] * math.cos(top_vertex_angle + 2.0 * math.pi / 3.0),
+            self.dimensions[0] * math.sin(top_vertex_angle + 2.0 * math.pi / 3.0), 0.0, 0.0, 1.0, 0.0, 0.0, 1.0,
+            self.dimensions[0] * math.cos(top_vertex_angle + 4.0 * math.pi / 3.0),
+            self.dimensions[0] * math.sin(top_vertex_angle + 4.0 * math.pi / 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+        ],
             dtype=np.float32
         )
+
 
 class CubeMeshStatic(PrimativeMesh):
     """
@@ -1643,50 +1666,161 @@ class CubeMeshStatic(PrimativeMesh):
 
     def generate_vertices(self):
         return np.array([
-              #Z- facing
-             -1.0*self.dimensions[0], -1.0*self.dimensions[1], -1.0*self.dimensions[2], 0.0, 0.0,  0.0, 0.0, -1.0,
-              1.0*self.dimensions[0],  1.0*self.dimensions[1], -1.0*self.dimensions[2], 1.0, 1.0,  0.0, 0.0, -1.0,
-              1.0*self.dimensions[0], -1.0*self.dimensions[1], -1.0*self.dimensions[2], 1.0, 0.0,  0.0, 0.0, -1.0,
-              1.0*self.dimensions[0],  1.0*self.dimensions[1], -1.0*self.dimensions[2], 1.0, 1.0,  0.0, 0.0, -1.0,
-             -1.0*self.dimensions[0], -1.0*self.dimensions[1], -1.0*self.dimensions[2], 0.0, 0.0,  0.0, 0.0, -1.0,
-             -1.0*self.dimensions[0],  1.0*self.dimensions[1], -1.0*self.dimensions[2], 0.0, 1.0,  0.0, 0.0, -1.0,
-            #Z+ facing
-            -1.0*self.dimensions[0], -1.0*self.dimensions[1], 1.0*self.dimensions[2], 0.0, 0.0, 0.0, 0.0,   1.0,
-             1.0*self.dimensions[0], -1.0*self.dimensions[1], 1.0*self.dimensions[2], 1.0, 0.0,  0.0, 0.0,  1.0,
-             1.0*self.dimensions[0],  1.0*self.dimensions[1], 1.0*self.dimensions[2], 1.0, 1.0,   0.0, 0.0, 1.0,
-             1.0*self.dimensions[0],  1.0*self.dimensions[1], 1.0*self.dimensions[2], 1.0, 1.0,   0.0, 0.0, 1.0,
-            -1.0*self.dimensions[0],  1.0*self.dimensions[1], 1.0*self.dimensions[2], 0.0, 1.0,  0.0, 0.0,  1.0,
-            -1.0*self.dimensions[0], -1.0*self.dimensions[1], 1.0*self.dimensions[2], 0.0, 0.0, 0.0, 0.0,   1.0,
-            #X- facing
-            -1.0*self.dimensions[0],  1.0*self.dimensions[1],  1.0*self.dimensions[2], 1.0, 1.0, -1.0, 0.0, 0.0,
-            -1.0*self.dimensions[0],  1.0*self.dimensions[1], -1.0*self.dimensions[2], 0.0, 1.0, -1.0, 0.0, 0.0,
-            -1.0*self.dimensions[0], -1.0*self.dimensions[1], -1.0*self.dimensions[2], 0.0, 0.0, -1.0, 0.0, 0.0,
-            -1.0*self.dimensions[0], -1.0*self.dimensions[1], -1.0*self.dimensions[2], 0.0, 0.0, -1.0, 0.0, 0.0,
-            -1.0*self.dimensions[0], -1.0*self.dimensions[1],  1.0*self.dimensions[2], 1.0, 0.0, -1.0, 0.0, 0.0,
-            -1.0*self.dimensions[0],  1.0*self.dimensions[1],  1.0*self.dimensions[2], 1.0, 1.0, -1.0, 0.0, 0.0,
-            #X+ facing
-            1.0*self.dimensions[0],  1.0*self.dimensions[1],  1.0*self.dimensions[2], 1.0, 1.0, 1.0, 0.0, 1.0,
-            1.0*self.dimensions[0], -1.0*self.dimensions[1], -1.0*self.dimensions[2], 0.0, 0.0, 1.0, 0.0, 1.0,
-            1.0*self.dimensions[0],  1.0*self.dimensions[1], -1.0*self.dimensions[2], 0.0, 1.0, 1.0, 0.0, 1.0,
-            1.0*self.dimensions[0], -1.0*self.dimensions[1], -1.0*self.dimensions[2], 0.0, 0.0, 1.0, 0.0, 1.0,
-            1.0*self.dimensions[0],  1.0*self.dimensions[1],  1.0*self.dimensions[2], 1.0, 1.0, 1.0, 0.0, 1.0,
-            1.0*self.dimensions[0], -1.0*self.dimensions[1],  1.0*self.dimensions[2], 1.0, 0.0, 1.0, 0.0, 1.0,
-            #Y- facing
-            -1.0*self.dimensions[0], -1.0*self.dimensions[1], -1.0*self.dimensions[2], 0.0, 1.0,  0.0, -1.0, 0.0,
-             1.0*self.dimensions[0], -1.0*self.dimensions[1], -1.0*self.dimensions[2], 1.0, 1.0,  0.0, -1.0, 0.0,
-             1.0*self.dimensions[0], -1.0*self.dimensions[1],  1.0*self.dimensions[2], 1.0, 0.0,  0.0, -1.0, 0.0,
-             1.0*self.dimensions[0], -1.0*self.dimensions[1],  1.0*self.dimensions[2], 1.0, 0.0,  0.0, -1.0, 0.0,
-            -1.0*self.dimensions[0], -1.0*self.dimensions[1],  1.0*self.dimensions[2], 0.0, 0.0,  0.0, -1.0, 0.0,
-            -1.0*self.dimensions[0], -1.0*self.dimensions[1], -1.0*self.dimensions[2], 0.0, 1.0,  0.0, -1.0, 0.0,
-            #Y+ facing
-            -1.0*self.dimensions[0], 1.0*self.dimensions[1], -1.0*self.dimensions[2], 0.0, 1.0, 0.0, 1.0, 0.0,
-             1.0*self.dimensions[0], 1.0*self.dimensions[1],  1.0*self.dimensions[2], 1.0, 0.0, 0.0, 1.0, 0.0,
-             1.0*self.dimensions[0], 1.0*self.dimensions[1], -1.0*self.dimensions[2], 1.0, 1.0, 0.0, 1.0, 0.0,
-             1.0*self.dimensions[0], 1.0*self.dimensions[1],  1.0*self.dimensions[2], 1.0, 0.0, 0.0, 1.0, 0.0,
-            -1.0*self.dimensions[0], 1.0*self.dimensions[1], -1.0*self.dimensions[2], 0.0, 1.0, 0.0, 1.0, 0.0,
-            -1.0*self.dimensions[0], 1.0*self.dimensions[1],  1.0*self.dimensions[2], 0.0, 0.0, 0.0, 1.0, 0.0,],
+            # Z- facing
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 0.0, 0.0, 0.0, -1.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 1.0, 1.0, 0.0, 0.0, -1.0,
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 1.0, 0.0, 0.0, 0.0, -1.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 1.0, 1.0, 0.0, 0.0, -1.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 0.0, 0.0, 0.0, -1.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 1.0, 0.0, 0.0, -1.0,
+            # Z+ facing
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.0, 0.0, 0.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 0.0, 0.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 1.0, 0.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 1.0, 0.0, 0.0, 1.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.0, 1.0, 0.0, 0.0, 1.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.0, 0.0, 0.0, 0.0, 1.0,
+            # X- facing
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 1.0, -1.0, 0.0, 0.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 1.0, -1.0, 0.0, 0.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 0.0, -1.0, 0.0, 0.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 0.0, -1.0, 0.0, 0.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 0.0, -1.0, 0.0, 0.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 1.0, -1.0, 0.0, 0.0,
+            # X+ facing
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 1.0, 1.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 0.0, 1.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 1.0, 1.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 0.0, 1.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 1.0, 1.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 0.0, 1.0, 0.0, 1.0,
+            # Y- facing
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 1.0, 0.0, -1.0, 0.0,
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 1.0, 1.0, 0.0, -1.0, 0.0,
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 0.0, 0.0, -1.0, 0.0,
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 0.0, 0.0, -1.0, 0.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.0, 0.0, 0.0, -1.0, 0.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 1.0, 0.0, -1.0, 0.0,
+            # Y+ facing
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 1.0, 0.0, 1.0, 0.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 0.0, 0.0, 1.0, 0.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 1.0, 1.0, 0.0, 1.0, 0.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 0.0, 0.0, 1.0, 0.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 1.0, 0.0, 1.0, 0.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.0, 0.0, 0.0, 1.0, 0.0, ],
             dtype=np.float32
         )
+
+
+class Skybox(PrimativeMesh):
+
+    def generate_vertices(self):
+        return np.array([
+            # Z- facing
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 1.0, 0.0, 0.0, 0.0, -1.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 1.0, 1.0, 0.0, 0.0, -1.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 0.0, 0.0, 0.0, -1.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 1.0, 0.0, 0.0, -1.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 0.0, 0.0, 0.0, -1.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 1.0, 1.0, 0.0, 0.0, -1.0,
+
+            # Z+ facing
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 1.0, 0.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 0.0, 0.0, 0.0, 1.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.0, 0.0, 0.0, 0.0, 1.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.0, 0.0, 0.0, 0.0, 1.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.0, 1.0, 0.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 1.0, 0.0, 0.0, 1.0,
+
+            # X- facing
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 0.0, -1.0, 0.0, 0.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 1.0, -1.0, 0.0, 0.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 1.0, -1.0, 0.0, 0.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 1.0, -1.0, 0.0, 0.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 0.0, -1.0, 0.0, 0.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 0.0, -1.0, 0.0, 0.0,
+
+            # X+ facing
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 1.0, 1.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 0.0, 1.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 1.0, 1.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 0.0, 1.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 1.0, 1.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 0.0, 1.0, 0.0, 1.0,
+
+            # Y- facing
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 0.0, 0.0, -1.0, 0.0,
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 1.0, 1.0, 0.0, -1.0, 0.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 1.0, 0.0, -1.0, 0.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 1.0, 0.0, -1.0, 0.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.0, 0.0, 0.0, -1.0, 0.0,
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 0.0, 0.0, -1.0, 0.0,
+
+            # Y+ facing
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 1.0, 1.0, 0.0, 1.0, 0.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 0.0, 0.0, 1.0, 0.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 1.0, 0.0, 1.0, 0.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.0, 0.0, 0.0, 1.0, 0.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 1.0, 0.0, 1.0, 0.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 1.0, 0.0, 0.0, 1.0, 0.0,],
+            dtype=np.float32
+        )
+
+class SkyboxEmission(PrimativeMeshEmission):
+
+    def generate_vertices(self):
+        return np.array([
+            # Z+ facing
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.75, 0.34, 0.0, 0.0, -1.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.75, 0.66, 0.0, 0.0, -1.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 1.0, 0.66, 0.0, 0.0, -1.0,
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.75, 0.34, 0.0, 0.0, -1.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 1.0, 0.66, 0.0, 0.0, -1.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 1.0, 0.34, 0.0, 0.0, -1.0,
+
+            # Z- facing
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.5, 0.66, 0.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.5, 0.34, 0.0, 0.0, 1.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.25, 0.34, 0.0, 0.0, 1.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.25, 0.34, 0.0, 0.0, 1.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.25, 0.66, 0.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.5, 0.66, 0.0, 0.0, 1.0,
+
+            # X- facing
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 0.34, -1.0, 0.0, 0.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 0.66, -1.0, 0.0, 0.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.25, 0.66, -1.0, 0.0, 0.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.25, 0.66, -1.0, 0.0, 0.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.25, 0.34, -1.0, 0.0, 0.0,
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.0, 0.34, -1.0, 0.0, 0.0,
+
+            # X+ facing
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.5, 0.34, 1.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.5, 0.66, 1.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.75, 0.66, 1.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2], 0.5, 0.34, 1.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.75, 0.66, 1.0, 0.0, 1.0,
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.75, 0.34, 1.0, 0.0, 1.0,
+
+            # Y- facing
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2],   0.5,  0.333, 0.0, -1.0, 0.0, #e
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2],  0.5,    0.0, 0.0, -1.0, 0.0, #b
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.25,   0.0, 0.0, -1.0, 0.0, #c
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.25,   0.0, 0.0, -1.0, 0.0, #c
+            -1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2],  0.25, 0.333, 0.0, -1.0, 0.0, #a
+            1.0 * self.dimensions[0], -1.0 * self.dimensions[1], 1.0 * self.dimensions[2],   0.5,  0.333, 0.0, -1.0, 0.0, #e
+
+            # Y+ facing
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2],  0.5,    1.0, 0.0, 1.0, 0.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2],   0.5,  0.667, 0.0, 1.0, 0.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.25,   1.0, 0.0, 1.0, 0.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2],  0.25, 0.667, 0.0, 1.0, 0.0,
+            -1.0 * self.dimensions[0], 1.0 * self.dimensions[1], -1.0 * self.dimensions[2], 0.25,   1.0, 0.0, 1.0, 0.0,
+            1.0 * self.dimensions[0], 1.0 * self.dimensions[1], 1.0 * self.dimensions[2],   0.5,  0.667, 0.0, 1.0, 0.0, ],
+            dtype=np.float32
+        )
+
+
 
 class FloorTileMesh(PrimativeMesh):
     """
@@ -1719,7 +1853,6 @@ class FloorTileMesh(PrimativeMesh):
         self.texture_vertical_offset = [0.0, 0.0]
         self.vertices = self.generate_vertices()
 
-
         # quad VAO
         self.VAO = glGenVertexArrays(1)
         glBindVertexArray(self.VAO)
@@ -1741,48 +1874,48 @@ class FloorTileMesh(PrimativeMesh):
         self.model_loc = glGetUniformLocation(self.shader, "model")
 
     def generate_vertices(self):
-        #todo: seperate position from texture coord and normal
-            #then zip-up at then end
-        #todo: excude base
-        #todo: stitch two bases together (Get a prism)
-        #todo: make new tile class, based on this one, that will
-            #1. outline points for a new base ontop of the floor
-            #2. excude upwards
-            #3. stitch together to get a wall
-        #todo: organize by surface
-            #a new class that holds vertices of a flat, polygonal surface
-            #cut a hole in the surface, re-stitch the triangles
-            #excude from a hole
-        #bezier curved-holes should be final touch
-            #focus on cutting, excuding, bevel(cut + excude + fill)
+        # todo: seperate position from texture coord and normal
+        # then zip-up at then end
+        # todo: excude base
+        # todo: stitch two bases together (Get a prism)
+        # todo: make new tile class, based on this one, that will
+        # 1. outline points for a new base ontop of the floor
+        # 2. excude upwards
+        # 3. stitch together to get a wall
+        # todo: organize by surface
+        # a new class that holds vertices of a flat, polygonal surface
+        # cut a hole in the surface, re-stitch the triangles
+        # excude from a hole
+        # bezier curved-holes should be final touch
+        # focus on cutting, excuding, bevel(cut + excude + fill)
         radius = self.dimensions[0]
         number_of_sides = 4.0
-        initial_angle = pi/number_of_sides
+        initial_angle = pi / number_of_sides
 
-        angle_of_rotation = 2*pi/number_of_sides
+        angle_of_rotation = 2 * pi / number_of_sides
         vertices = []
         faces = []
         faces.append(Face())
 
-        faces[0].outer_vertices = self.generate_outer_vertices(number_of_sides=number_of_sides, initial_angle=initial_angle)
+        faces[0].outer_vertices = self.generate_outer_vertices(number_of_sides=number_of_sides,
+                                                               initial_angle=initial_angle)
         faces[0].offset_outer_vertices(offset=glm.vec3([0.0, -1.0, 0.0]))
         faces[0].vertices = self.outer_vertices_to_vertices(number_of_sides=number_of_sides, face=faces[0])
         faces[0].apply_hardset_quad_texture_coords()
 
-        #generate the second face via exude
+        # generate the second face via exude
         faces.append(Face())
-        faces[1].extrude_from_other_face(other=faces[0], direction = [0.0, 1.0, 0.0], distance=self.dimensions[1])
+        faces[1].extrude_from_other_face(other=faces[0], direction=[0.0, 1.0, 0.0], distance=self.dimensions[1])
 
-        #generate the 4 vertical faces
+        # generate the 4 vertical faces
         faces += self.stitch_faces(face_a=faces[0], face_b=faces[1], number_of_faces=number_of_sides)
-
 
         vertices = []
         for face in faces:
             vertices += face.face_to_list()
         return np.array(vertices,
-            dtype=np.float32
-        ).flatten()
+                        dtype=np.float32
+                        ).flatten()
 
     def generate_outer_vertices(self, number_of_sides=4, initial_angle=None):
         """
@@ -1813,16 +1946,15 @@ class FloorTileMesh(PrimativeMesh):
             triangle_vertices = [Vertex(), Vertex(), Vertex()]
 
             triangle_vertices[0].positions = glm.vec3([
-                 face.outer_vertices[0],
-                 face.outer_vertices[1],
-                 face.outer_vertices[2]
+                face.outer_vertices[0],
+                face.outer_vertices[1],
+                face.outer_vertices[2]
             ])
             triangle_vertices[0].texture_coordinates = glm.vec2([
                 face.outer_vertices[0] / 2.0 + 0.5,
                 face.outer_vertices[2] / 2.0 + 0.5
             ])
             triangle_vertices[0].normals = glm.vec3([0.0, 1.0, 0.0])
-
 
             triangle_vertices[1].positions = glm.vec3([
                 face.outer_vertices[3 * i + 0 + 3 * 1],
@@ -1854,19 +1986,21 @@ class FloorTileMesh(PrimativeMesh):
             vertices += triangle_vertices
         return vertices
 
+
 class Face():
     """
     convert Face into a 1-dimensional numpy array that opengl can draw
     """
+
     def __init__(self, vertices=[], outer_vertices=[]):
         self.vertices = vertices
-        self.outer_vertices = outer_vertices #non-repeating vertices, to use for excuding, stitching, etc
-        self.tile_width = 2.0 #TODO: make this a parameter
+        self.outer_vertices = outer_vertices  # non-repeating vertices, to use for excuding, stitching, etc
+        self.tile_width = 2.0  # TODO: make this a parameter
         self.texture_horizontal_offset = [0.0, 0.0]
         self.texture_vertical_offset = [0.0, 0.0]
         self.normal = glm.vec3([0.0, 1.0, 0.0])
         self.outer_vertices_vec3 = None
-        self.radius = 1.0 #todo calculate this from outer_vertices or something
+        self.radius = 1.0  # todo calculate this from outer_vertices or something
         self.sides = 0
         self.texture_atlas_index = 0
 
@@ -1874,7 +2008,7 @@ class Face():
         self.calculate_outer_vertices_as_vec3()
         self.sides = len(self.outer_vertices_vec3)
 
-    def offset_vertices_all(self, offset=glm.vec3([0.0, 0.0 ,0.0])):
+    def offset_vertices_all(self, offset=glm.vec3([0.0, 0.0, 0.0])):
         """
         offset the outer vertices and inner vertices
 
@@ -1966,9 +2100,9 @@ class Face():
                 updated_vertex.positions = glm.vec3(vertex.positions) + offset
             else:
                 radius_adjusted_vertices = (
-                    glm.vec3(vertex.positions).x*scale,
+                    glm.vec3(vertex.positions).x * scale,
                     glm.vec3(vertex.positions).y,
-                    glm.vec3(vertex.positions).z*scale
+                    glm.vec3(vertex.positions).z * scale
                 )
                 updated_vertex.positions = glm.vec3(radius_adjusted_vertices) + offset
             updated_vertex.texture_coordinates = glm.vec2(vertex.texture_coordinates)
@@ -1980,7 +2114,7 @@ class Face():
             other.vertices.reverse()
         self.vertices = all_vertices
         outer_vertices = [0.0] * len(other.outer_vertices)
-        for vertex_index in range(int(len(other.outer_vertices)/3)):
+        for vertex_index in range(int(len(other.outer_vertices) / 3)):
             if scale is None:
                 outer_vertices[vertex_index * 3] = other.outer_vertices[vertex_index * 3] + offset.x
                 outer_vertices[vertex_index * 3 + 1] = other.outer_vertices[vertex_index * 3 + 1] + offset.y
@@ -1995,7 +2129,7 @@ class Face():
         self.calculate_sides()
         self.vertices = self.outer_vertices_to_vertices(reverse_texture_coordinates=True)
 
-    def extrude_from_other_face_2(self, other, direction = [0.0, 1.0, 0.0], distance=1.0, flip_base=True, radius=1.0):
+    def extrude_from_other_face_2(self, other, direction=[0.0, 1.0, 0.0], distance=1.0, flip_base=True, radius=1.0):
         """
         Trying a new extrude process WIP
         """
@@ -2013,12 +2147,13 @@ class Face():
             vertex.y += offset.y
             vertex.z += offset.z
         if flip_base:
-            self.outer_vertices = vec3_list_to_list(rotate_list(self.outer_vertices_vec3, math.ceil(len(self.outer_vertices_vec3)/2)))
+            self.outer_vertices = vec3_list_to_list(
+                rotate_list(self.outer_vertices_vec3, math.ceil(len(self.outer_vertices_vec3) / 2)))
         else:
             self.outer_vertices = vec3_list_to_list(self.outer_vertices_vec3)
         self.vertices = self.outer_vertices_to_vertices()
 
-        #todo: this should work....
+        # todo: this should work....
         for vertex, other_vertex in zip(self.vertices, other.vertices):
             vertex.texture_coordinates = glm.vec2(other_vertex.texture_coordinates)
 
@@ -2032,22 +2167,24 @@ class Face():
        """
         self.texture_atlas_index = texture_atlas_index
 
-        #texture atlas index into row and column indices
+        # texture atlas index into row and column indices
         column_index = float(texture_atlas_index % texture_atlas_size)
         row_index = 1.0 - math.floor(texture_atlas_index / texture_atlas_size)
 
-        #row and column indices into lower and upper bounds of texture coords (4 total)
-        #column (x-axis)lower and upper
+        # row and column indices into lower and upper bounds of texture coords (4 total)
+        # column (x-axis)lower and upper
         lower_texture_coord_x_axis = 1.0 / texture_atlas_size * column_index
         upper_texture_coord_x_axis = 1.0 / texture_atlas_size * (column_index + 1.0)
-        #assuming square textures
+        # assuming square textures
         subtexture_magnitude = upper_texture_coord_x_axis - lower_texture_coord_x_axis
         lower_texture_coord_y_axis = 1.0 / texture_atlas_size * row_index
         upper_texture_coord_y_axis = 1.0 / texture_atlas_size * (row_index + 1.0)
-        #update the current vertices' text coords
+        # update the current vertices' text coords
         for vertex in self.vertices:
-            vertex.texture_coordinates[0] = lower_texture_coord_x_axis + vertex.texture_coordinates[0] * subtexture_magnitude
-            vertex.texture_coordinates[1] = lower_texture_coord_y_axis + vertex.texture_coordinates[1] * subtexture_magnitude
+            vertex.texture_coordinates[0] = lower_texture_coord_x_axis + vertex.texture_coordinates[
+                0] * subtexture_magnitude
+            vertex.texture_coordinates[1] = lower_texture_coord_y_axis + vertex.texture_coordinates[
+                1] * subtexture_magnitude
 
     def apply_hardset_quad_texture_coords(self):
         """
@@ -2083,11 +2220,11 @@ class Face():
 
     def offset_outer_vertices(self, offset=glm.vec3([0.0, 0.0, 0.0])):
         for i in range(len(self.outer_vertices)):
-            if i%3 == 0:
+            if i % 3 == 0:
                 self.outer_vertices[i] += offset.x
-            if i%3 == 1:
+            if i % 3 == 1:
                 self.outer_vertices[i] += offset.y
-            if i%3 == 2:
+            if i % 3 == 2:
                 self.outer_vertices[i] += offset.z
         # print(self.outer_vertices)
 
@@ -2123,10 +2260,10 @@ class Face():
         texture_coordinates = []
         self.calculate_outer_vertices_as_vec3()
         sides = len(self.outer_vertices_vec3)
-        #1 get center point of polygon
+        # 1 get center point of polygon
         center_point = calculate_mean_point(points=self.outer_vertices_vec3)
-        #get distances from center point to each vertex
-            #also, find the largest distance
+        # get distances from center point to each vertex
+        # also, find the largest distance
         vertex_distances = []
         largest_distance = 0
         for point in self.outer_vertices_vec3:
@@ -2134,35 +2271,35 @@ class Face():
             vertex_distances.append(distance)
             if distance > largest_distance:
                 largest_distance = distance
-        #scale the distances by the largest
+        # scale the distances by the largest
         for index, distance in enumerate(vertex_distances):
-            vertex_distances[index] = distance/(largest_distance*2)
+            vertex_distances[index] = distance / (largest_distance * 2)
 
-        #Get the angles between the vertices
+        # Get the angles between the vertices
         vertex_angles = []
         angle_sum = 0
-        for index in range(sides-1):
+        for index in range(sides - 1):
             a = self.outer_vertices_vec3[index]
-            b = self.outer_vertices_vec3[index+1]
+            b = self.outer_vertices_vec3[index + 1]
             c = center_point
             angle = self.calculate_angle(a, b, c)
             vertex_angles.append(angle)
             angle_sum += angle
-        vertex_angles.append(2*pi - angle_sum)
+        vertex_angles.append(2 * pi - angle_sum)
 
         is_even = False
         if sides % 2 == 0:
             is_even = True
-        #calculate initial angle offset (rotate the whole triangle)
+        # calculate initial angle offset (rotate the whole triangle)
         if is_even:
-            if (sides/2) % 2 == 0:
-                angle_initial = pi/2 + vertex_angles[0] + vertex_angles[1]/2
+            if (sides / 2) % 2 == 0:
+                angle_initial = pi / 2 + vertex_angles[0] + vertex_angles[1] / 2
                 if sides == 8:
-                    angle_initial = pi + vertex_angles[2] + vertex_angles[1]/2
+                    angle_initial = pi + vertex_angles[2] + vertex_angles[1] / 2
                 elif sides == 12:
-                    angle_initial = pi + vertex_angles[2]/2 + vertex_angles[0] + vertex_angles[1]
+                    angle_initial = pi + vertex_angles[2] / 2 + vertex_angles[0] + vertex_angles[1]
             else:
-                #6
+                # 6
                 angle_initial = pi + vertex_angles[0]
                 if sides == 10:
                     angle_initial = pi + vertex_angles[0] + vertex_angles[1]
@@ -2170,7 +2307,7 @@ class Face():
             angle_initial = pi + ((pi - vertex_angles[-1]) / 2)
         vertex_distances = rotate_list(vertex_distances, steps=1)
 
-        #go around the unit circle, angle by angle, and place a point at the distance away
+        # go around the unit circle, angle by angle, and place a point at the distance away
         for index in range(0, sides):
             angle_current = sum(vertex_angles[:index + 1])
             coordinate = glm.vec2((0.0, 0.0))
@@ -2178,9 +2315,9 @@ class Face():
             coordinate.y = (sin(angle_initial - angle_current) * vertex_distances[index]) + 0.5
             texture_coordinates.append(coordinate)
         if is_even:
-            texture_coordinates = rotate_list(texture_coordinates, steps=sides-1)
+            texture_coordinates = rotate_list(texture_coordinates, steps=sides - 1)
         else:
-            texture_coordinates = rotate_list(texture_coordinates, steps=sides-1)
+            texture_coordinates = rotate_list(texture_coordinates, steps=sides - 1)
         if reverse:
             texture_coordinates.reverse()
         return texture_coordinates
@@ -2264,6 +2401,7 @@ class Face():
         self.outer_vertices = vec3_list_to_list(self.outer_vertices_vec3)
         self.outer_vertices_to_vertices()
 
+
 class Vertex():
     def __init__(self):
         self.positions = glm.vec3()
@@ -2283,33 +2421,36 @@ class Vertex():
             vertex_as_list.append(normal)
         return vertex_as_list
 
+
 class WallTileMesh(FloorTileMesh):
     """
     straight walls for wfc world
     """
+
     def generate_vertices(self):
         radius = self.dimensions[0]
         number_of_sides = 4.0
-        initial_angle = pi/number_of_sides
+        initial_angle = pi / number_of_sides
 
-        angle_of_rotation = 2*pi/number_of_sides
+        angle_of_rotation = 2 * pi / number_of_sides
         vertices = []
         faces = []
         faces.append(Face())
 
-        faces[0].outer_vertices = self.generate_outer_vertices(number_of_sides=number_of_sides, initial_angle=initial_angle)
+        faces[0].outer_vertices = self.generate_outer_vertices(number_of_sides=number_of_sides,
+                                                               initial_angle=initial_angle)
         faces[0].offset_outer_vertices(offset=glm.vec3([0.0, -1.0, 0.0]))
         faces[0].vertices = self.outer_vertices_to_vertices(number_of_sides=number_of_sides, face=faces[0])
         faces[0].apply_hardset_quad_texture_coords()
 
-        #generate the second face via exude
+        # generate the second face via exude
         faces.append(Face())
-        faces[1].extrude_from_other_face(other=faces[0], direction = [0.0, 1.0, 0.0], distance=self.dimensions[1])
+        faces[1].extrude_from_other_face(other=faces[0], direction=[0.0, 1.0, 0.0], distance=self.dimensions[1])
 
-        #generate the 4 vertical faces
+        # generate the 4 vertical faces
         faces += self.stitch_faces(face_a=faces[0], face_b=faces[1], number_of_faces=number_of_sides)
 
-        #generate the top of the wall
+        # generate the top of the wall
         x_border = 0.0
         z_border = 0.5
         y_border = 2.0
@@ -2317,7 +2458,7 @@ class WallTileMesh(FloorTileMesh):
         top_of_wall = Face()
         bottom_of_wall = Face()
 
-        #TODO: refactor this big time
+        # TODO: refactor this big time
         top_of_wall.outer_vertices = faces[0].outer_vertices.copy()
         top_of_wall.outer_vertices[0] -= x_border
         top_of_wall.outer_vertices[1] += y_border
@@ -2352,7 +2493,7 @@ class WallTileMesh(FloorTileMesh):
 
         bottom_of_wall.vertices = self.outer_vertices_to_vertices(number_of_sides=4, face=bottom_of_wall)
 
-        #wall vertical quads
+        # wall vertical quads
         faces += self.stitch_faces(face_a=bottom_of_wall, face_b=top_of_wall, number_of_faces=number_of_sides)
 
         vertices = []
@@ -2364,34 +2505,37 @@ class WallTileMesh(FloorTileMesh):
         # for face in faces:
         #     vertices += face.face_to_list()
         return np.array(vertices,
-            dtype=np.float32
-        ).flatten()
+                        dtype=np.float32
+                        ).flatten()
+
 
 class DoorwayTileMesh(FloorTileMesh):
     """
     straight walls for wfc world
     """
+
     def generate_vertices(self):
         radius = self.dimensions[0]
         number_of_sides = 4.0
-        initial_angle = pi/number_of_sides
+        initial_angle = pi / number_of_sides
 
-        angle_of_rotation = 2*pi/number_of_sides
+        angle_of_rotation = 2 * pi / number_of_sides
         vertices = []
         faces = []
         faces.append(Face())
-        faces[0].outer_vertices = self.generate_outer_vertices(number_of_sides=number_of_sides, initial_angle=initial_angle)
+        faces[0].outer_vertices = self.generate_outer_vertices(number_of_sides=number_of_sides,
+                                                               initial_angle=initial_angle)
         faces[0].offset_outer_vertices(offset=glm.vec3([0.0, -1.0, 0.0]))
         faces[0].vertices = self.outer_vertices_to_vertices(number_of_sides=number_of_sides, face=faces[0])
 
-        #generate the second face via exude
+        # generate the second face via exude
         faces.append(Face())
-        faces[1].extrude_from_other_face(other=faces[0], direction = [0.0, 1.0, 0.0], distance=self.dimensions[1])
+        faces[1].extrude_from_other_face(other=faces[0], direction=[0.0, 1.0, 0.0], distance=self.dimensions[1])
 
-        #generate the 4 vertical faces
+        # generate the 4 vertical faces
         faces += self.stitch_faces(face_a=faces[0], face_b=faces[1], number_of_faces=number_of_sides)
 
-        #generate the top of the wall
+        # generate the top of the wall
         x_border = 0.0
         z_border = 0.5
         y_border = 2.0
@@ -2399,7 +2543,7 @@ class DoorwayTileMesh(FloorTileMesh):
         top_of_wall = Face()
         bottom_of_wall = Face()
 
-        #TODO: refactor this big time
+        # TODO: refactor this big time
         top_of_wall.outer_vertices = faces[0].outer_vertices.copy()
         top_of_wall.outer_vertices[0] -= x_border
         top_of_wall.outer_vertices[1] += y_border
@@ -2433,13 +2577,12 @@ class DoorwayTileMesh(FloorTileMesh):
 
         bottom_of_wall.vertices = self.outer_vertices_to_vertices(number_of_sides=4, face=bottom_of_wall)
 
-        #wall vertical faces
+        # wall vertical faces
         faces_vertical = []
         faces_vertical += self.stitch_faces(face_a=bottom_of_wall, face_b=top_of_wall, number_of_faces=number_of_sides)
-        #? order of faces?
-            #-need to to get the two z-facing faces (parallel to x-axis)
-            #should be 0 and 2 index
-
+        # ? order of faces?
+        # -need to to get the two z-facing faces (parallel to x-axis)
+        # should be 0 and 2 index
 
         doorway_faces = []
         doorway_faces += self.subdivide_into_doorway(
@@ -2448,23 +2591,23 @@ class DoorwayTileMesh(FloorTileMesh):
             doorway_width=0.4,
             doorway_height=.8
         )
-        #delete faces from which we cut a door
+        # delete faces from which we cut a door
         del faces_vertical[0]
         del faces_vertical[1]
 
-        #add all faces to list, and numpy-ify so opengl can draw
+        # add all faces to list, and numpy-ify so opengl can draw
         faces += faces_vertical + doorway_faces
         vertices = []
         beveled_faces = []
         for face in faces:
-            beveled_faces += self.bevel_cut(face, bevel_depths = [0.0, -0.2], border_sizes = [0.6, 0.2])
+            beveled_faces += self.bevel_cut(face, bevel_depths=[0.0, -0.2], border_sizes=[0.6, 0.2])
         for face in beveled_faces:
             vertices += face.face_to_list()
         # for face in faces:
         #     vertices += face.face_to_list()
         return np.array(vertices,
-            dtype=np.float32
-        ).flatten()
+                        dtype=np.float32
+                        ).flatten()
 
     def subdivide_into_vertical_thirds(self, face, center_width=0.4, remove_center=False, z_positive=False):
         """
@@ -2473,7 +2616,7 @@ class DoorwayTileMesh(FloorTileMesh):
         :param center_width: width of center rectangle
         :return subfaces, a list of 3(2 for hole) faces
         """
-        subfaces = [] #return
+        subfaces = []  # return
         center_face = Face()
         left_face = Face()
         right_face = Face()
@@ -2501,51 +2644,53 @@ class DoorwayTileMesh(FloorTileMesh):
         center_upper_left = glm.vec3(midpoint_horizontal - center_width / 2.0, face_upper_y, face_plane_z)
 
         if z_positive:
-            center_face.outer_vertices = list(center_upper_left) + list(center_lower_left) +\
+            center_face.outer_vertices = list(center_upper_left) + list(center_lower_left) + \
                                          list(center_lower_right) + list(center_upper_right)
         else:
-            center_face.outer_vertices = list(center_upper_right) + list(center_lower_right) + list(center_lower_left) + list(
+            center_face.outer_vertices = list(center_upper_right) + list(center_lower_right) + list(
+                center_lower_left) + list(
                 center_upper_left)
 
         center_face.vertices = center_face.outer_vertices_to_vertices()
         border_width = (1.0 - center_width_normalized) / 2
-        center_face.set_texture_offsets(horizontal=[border_width, -border_width], vertical=[0.0,0.0])
+        center_face.set_texture_offsets(horizontal=[border_width, -border_width], vertical=[0.0, 0.0])
         center_face.apply_hardset_quad_texture_coords()
         if not remove_center:
             subfaces.append(center_face)
             # subfaces += self.subdivide_into_horizontal_halves(center_face, bottom_height=0.9, z_positive=False)
 
         # now make the 2 border faces
-        #left
+        # left
         if z_positive:
-            left_face.outer_vertices = list(upper_left)  + list(lower_left)  + \
+            left_face.outer_vertices = list(upper_left) + list(lower_left) + \
                                        list(center_lower_left) + list(center_upper_left)
             left_face.vertices = left_face.outer_vertices_to_vertices()
-            left_face.set_texture_offsets(horizontal=[0, -(border_width + center_width_normalized)], vertical=[0.0, 0.0])
+            left_face.set_texture_offsets(horizontal=[0, -(border_width + center_width_normalized)],
+                                          vertical=[0.0, 0.0])
             left_face.apply_hardset_quad_texture_coords()
-        else: #right
-            left_face.outer_vertices =  list(center_upper_left)  + list(center_lower_left) +\
-                                         list(lower_right) + list(upper_right)
+        else:  # right
+            left_face.outer_vertices = list(center_upper_left) + list(center_lower_left) + \
+                                       list(lower_right) + list(upper_right)
             left_face.vertices = left_face.outer_vertices_to_vertices()
             left_face.set_texture_offsets(horizontal=[border_width + center_width_normalized, 0], vertical=[0.0, 0.0])
             left_face.apply_hardset_quad_texture_coords()
         subfaces.append(left_face)
 
-        #right
+        # right
         if z_positive:
-            right_face.outer_vertices = list(center_upper_right) + list(center_lower_right)  + \
-                                         list(lower_right) + list(upper_right)
+            right_face.outer_vertices = list(center_upper_right) + list(center_lower_right) + \
+                                        list(lower_right) + list(upper_right)
             right_face.vertices = right_face.outer_vertices_to_vertices()
             right_face.set_texture_offsets(horizontal=[border_width + center_width_normalized, 0], vertical=[0.0, 0.0])
             right_face.apply_hardset_quad_texture_coords()
-        else: #left
-            right_face.outer_vertices = list(upper_left)+ list(lower_left) +\
-                                         list(center_lower_right)+ list(center_upper_right)
+        else:  # left
+            right_face.outer_vertices = list(upper_left) + list(lower_left) + \
+                                        list(center_lower_right) + list(center_upper_right)
             right_face.vertices = right_face.outer_vertices_to_vertices()
-            right_face.set_texture_offsets(horizontal=[0, -(border_width + center_width_normalized)], vertical=[0.0, 0.0])
+            right_face.set_texture_offsets(horizontal=[0, -(border_width + center_width_normalized)],
+                                           vertical=[0.0, 0.0])
             right_face.apply_hardset_quad_texture_coords()
         subfaces.append(right_face)
-
 
         return subfaces
 
@@ -2556,7 +2701,7 @@ class DoorwayTileMesh(FloorTileMesh):
         :param bottom_height: height of lower rectangle
         :return subfaces, a list of 2 faces
         """
-        subfaces = [] #return
+        subfaces = []  # return
         bottom_face = Face()
         top_face = Face()
         bottom_height_normalized = bottom_height
@@ -2567,20 +2712,18 @@ class DoorwayTileMesh(FloorTileMesh):
         lower_left = glm.vec3(face.outer_vertices[6], face.outer_vertices[7], face.outer_vertices[8])
         upper_left = glm.vec3(face.outer_vertices[9], face.outer_vertices[10], face.outer_vertices[11])
 
-        bottom_height = bottom_height*(upper_right.y - lower_right.y)
+        bottom_height = bottom_height * (upper_right.y - lower_right.y)
         # else:
         #     lower_right = glm.vec3(face.outer_vertices[0], face.outer_vertices[1], face.outer_vertices[2])
         #     upper_right = glm.vec3(face.outer_vertices[3], face.outer_vertices[4], face.outer_vertices[5])
         #     upper_left = glm.vec3(face.outer_vertices[6], face.outer_vertices[7], face.outer_vertices[8])
         #     lower_left = glm.vec3(face.outer_vertices[9], face.outer_vertices[10], face.outer_vertices[11])
 
-
-
-        #middle line points
+        # middle line points
         middle_left = lower_left + glm.vec3(0.0, bottom_height, 0.0)
         middle_right = lower_right + glm.vec3(0.0, bottom_height, 0.0)
 
-        #bottom quads outer vertices
+        # bottom quads outer vertices
         bottom_lower_left = lower_left
         bottom_lower_right = lower_right
         bottom_upper_left = middle_left
@@ -2595,22 +2738,22 @@ class DoorwayTileMesh(FloorTileMesh):
 
         bottom_face.vertices = bottom_face.outer_vertices_to_vertices()
         bottom_face.set_texture_offsets(horizontal=face.texture_horizontal_offset,
-                                        vertical=[0.0, -(1.0-bottom_height_normalized)])
+                                        vertical=[0.0, -(1.0 - bottom_height_normalized)])
         bottom_face.apply_hardset_quad_texture_coords()
         subfaces.append(bottom_face)
 
         # top quads outer vertices
-        top_lower_left =  middle_left
+        top_lower_left = middle_left
         top_lower_right = middle_right
         top_upper_left = upper_left
         top_upper_right = upper_right
 
         if z_positive:
             top_face.outer_vertices = list(top_upper_left) + list(top_lower_left) + \
-                                         list(top_lower_right) + list(top_upper_right)
+                                      list(top_lower_right) + list(top_upper_right)
         else:
             top_face.outer_vertices = list(top_upper_right) + list(top_lower_right) + \
-                                         list(top_lower_left) + list(top_upper_left)
+                                      list(top_lower_left) + list(top_upper_left)
 
         top_face.vertices = top_face.outer_vertices_to_vertices()
         top_face.set_texture_offsets(horizontal=face.texture_horizontal_offset,
@@ -2638,14 +2781,14 @@ class DoorwayTileMesh(FloorTileMesh):
             remove_center=False,
             z_positive=True
         )
-        faces.append(third_faces_z_positive[1]) #left of door
-        faces.append(third_faces_z_positive[2]) #right of door
+        faces.append(third_faces_z_positive[1])  # left of door
+        faces.append(third_faces_z_positive[2])  # right of door
         door_faces_z_positive = self.subdivide_into_horizontal_halves(
             face=third_faces_z_positive[0],
             bottom_height=doorway_height,
             z_positive=False
-        ) #subdivide the center face
-        faces.append(door_faces_z_positive[1]) #above door
+        )  # subdivide the center face
+        faces.append(door_faces_z_positive[1])  # above door
 
         third_faces_z_negative = self.subdivide_into_vertical_thirds(
             face=face_z_negative,
@@ -2662,11 +2805,11 @@ class DoorwayTileMesh(FloorTileMesh):
         )  # subdivide the center face
         faces.append(door_faces_z_negative[1])  # above door
 
-        #left side of the inner door hallway
+        # left side of the inner door hallway
         door_hole_z_negative = door_faces_z_negative[0].outer_vertices
         door_hole_z_positive = door_faces_z_positive[0].outer_vertices
 
-        #get our outer vertices z+
+        # get our outer vertices z+
         z_positive_upper_left = glm.vec3(door_hole_z_positive[0], door_hole_z_positive[1], door_hole_z_positive[2])
         z_positive_lower_left = glm.vec3(door_hole_z_positive[3], door_hole_z_positive[4], door_hole_z_positive[5])
         z_positive_lower_right = glm.vec3(door_hole_z_positive[6], door_hole_z_positive[7], door_hole_z_positive[8])
@@ -2678,9 +2821,10 @@ class DoorwayTileMesh(FloorTileMesh):
         z_negative_lower_left = glm.vec3(door_hole_z_negative[6], door_hole_z_negative[7], door_hole_z_negative[8])
         z_negative_upper_left = glm.vec3(door_hole_z_negative[9], door_hole_z_negative[10], door_hole_z_negative[11])
 
-        #construct left side
+        # construct left side
         left_hall = Face()
-        left_hall.outer_vertices = list(z_positive_upper_left)  + list(z_positive_lower_left) + list(z_negative_lower_left) + list(z_negative_upper_left)
+        left_hall.outer_vertices = list(z_positive_upper_left) + list(z_positive_lower_left) + list(
+            z_negative_lower_left) + list(z_negative_upper_left)
         left_hall.vertices = left_hall.outer_vertices_to_vertices()
         left_hall.set_texture_offsets(vertical=[0.0, 0.0], horizontal=[0.0, 0.0])
         left_hall.apply_hardset_quad_texture_coords()
@@ -2688,7 +2832,7 @@ class DoorwayTileMesh(FloorTileMesh):
 
         # construct left side
         right_hall = Face()
-        right_hall.outer_vertices = list(z_negative_upper_right) + list(z_negative_lower_right) +\
+        right_hall.outer_vertices = list(z_negative_upper_right) + list(z_negative_lower_right) + \
                                     list(z_positive_lower_right) + list(z_positive_upper_right)
         right_hall.vertices = right_hall.outer_vertices_to_vertices()
         right_hall.set_texture_offsets(vertical=[0.0, 0.0], horizontal=[0.0, 0.0])
@@ -2698,13 +2842,14 @@ class DoorwayTileMesh(FloorTileMesh):
         # construct ceiling
         ceiling_hall = Face()
         ceiling_hall.outer_vertices = list(z_negative_upper_right) + list(z_positive_upper_right) + \
-                                    list(z_positive_upper_left) + list(z_negative_upper_left)
+                                      list(z_positive_upper_left) + list(z_negative_upper_left)
         ceiling_hall.vertices = ceiling_hall.outer_vertices_to_vertices()
         ceiling_hall.set_texture_offsets(vertical=[0.0, 0.0], horizontal=[0.0, 0.0])
         ceiling_hall.apply_hardset_quad_texture_coords()
         faces.append(ceiling_hall)
 
         return faces
+
 
 class Prism(PrimativeMesh):
     """
@@ -2718,7 +2863,7 @@ class Prism(PrimativeMesh):
                  specular,
                  shininess=32.0,
                  # mesh properties
-                 dimensions=[1.0, 1.0], #radius, height
+                 dimensions=[1.0, 1.0],  # radius, height
                  position=[0.0, 0.0, 0.0],
                  rotation_magnitude=0,
                  rotation_axis=glm.vec3([0.0, 0.0, 1.0]),
@@ -2788,6 +2933,7 @@ class Prism(PrimativeMesh):
             dtype=np.float32
         ).flatten()
 
+
 class NPrismBezierCut(Prism):
     def generate_vertices(self):
         """
@@ -2803,7 +2949,8 @@ class NPrismBezierCut(Prism):
         initial_angle = pi / number_of_sides
         angle_of_rotation = 2 * pi / number_of_sides
         faces = [Face()]
-        faces[0].outer_vertices = self.generate_outer_vertices(number_of_sides=number_of_sides,                                                           initial_angle=initial_angle)
+        faces[0].outer_vertices = self.generate_outer_vertices(number_of_sides=number_of_sides,
+                                                               initial_angle=initial_angle)
         # faces[0].offset_outer_vertices(offset=glm.vec3([0.0, -1.0, 0.0]))
         faces[0].vertices = self.outer_vertices_to_vertices(number_of_sides=number_of_sides, face=faces[0])
         # # faces[0].apply_hardset_quad_texture_coords()
@@ -2815,7 +2962,8 @@ class NPrismBezierCut(Prism):
         # quad_faces = self.divide_face_into_quads(original_face=faces[2], center_point_offset=0.0)
         quad_faces = self.subdivide_quad_lengthwise(face=faces[2], subdivisions=3, widthwise=True)
         for face in quad_faces:
-            faces_bevel_cut = self.bevel_cut(original_face=face,bevel_depths=[-0.0,-1.5], border_sizes=[0.1,0.3], depth=2, direction=glm.vec3(.5,0.0,-1.0))
+            faces_bevel_cut = self.bevel_cut(original_face=face, bevel_depths=[-0.0, -1.5], border_sizes=[0.1, 0.3],
+                                             depth=2, direction=glm.vec3(.5, 0.0, -1.0))
             faces_from_bezier_cut = self.bezier_cut(face=faces_bevel_cut[-5], intervals=8, offset=0.2)
             del faces_bevel_cut[-5]
             for face in faces_from_bezier_cut:
@@ -2824,7 +2972,8 @@ class NPrismBezierCut(Prism):
                 faces.insert(3, face)
         del faces[2]
 
-        hip_faces = self.subdivide_hip_roof(faces[-1], start_point=[0.1, 0.1], end_point=[0.1, 0.9], vertical_offset=1.0)
+        hip_faces = self.subdivide_hip_roof(faces[-1], start_point=[0.1, 0.1], end_point=[0.1, 0.9],
+                                            vertical_offset=1.0)
         del faces[-1]
         for face in hip_faces:
             faces.insert(3, face)
@@ -2833,36 +2982,38 @@ class NPrismBezierCut(Prism):
         index = 0
         # faces[-3].update_texture_coords_using_atlas_index(texture_atlas_index=3, texture_atlas_size=2)
         for face in faces:
-            face.update_texture_coords_using_atlas_index(texture_atlas_index=index%4, texture_atlas_size=2)
+            face.update_texture_coords_using_atlas_index(texture_atlas_index=index % 4, texture_atlas_size=2)
             vertices += face.face_to_list()
             index += 1
         return np.array(vertices,
                         dtype=np.float32
-        ).flatten()
+                        ).flatten()
+
 
 class SegmentedPrism(Prism):
     """
     Makes potion bottles (segmented cylindar with different radius per segment)
     """
+
     def __init__(self,
-        shader,
-        # material properties
-        diffuse,
-        specular,
-        shininess=32.0,
-        # mesh properties
-        dimensions=[1.0, 1.0], #radius, height
-        position=[0.0, 0.0, 0.0],
-        rotation_magnitude=0,
-        rotation_axis=glm.vec3([0.0, 0.0, 1.0]),
-        scale=glm.vec3([1.0, 1.0, 1.0]),
-        sides=3,
-        segments=1,
-        outer_vertices_offset = [0.0, -1.0, 0.0],
-        bevel_depths = [-0.2, -0.4],
-        border_sizes = [0.6, 0.0],
-        depth=2
-    ):
+                 shader,
+                 # material properties
+                 diffuse,
+                 specular,
+                 shininess=32.0,
+                 # mesh properties
+                 dimensions=[1.0, 1.0],  # radius, height
+                 position=[0.0, 0.0, 0.0],
+                 rotation_magnitude=0,
+                 rotation_axis=glm.vec3([0.0, 0.0, 1.0]),
+                 scale=glm.vec3([1.0, 1.0, 1.0]),
+                 sides=3,
+                 segments=1,
+                 outer_vertices_offset=[0.0, -1.0, 0.0],
+                 bevel_depths=[-0.2, -0.4],
+                 border_sizes=[0.6, 0.0],
+                 depth=2
+                 ):
         self.shader = shader
         self.diffuse = diffuse
         self.specular = specular
@@ -2883,12 +3034,11 @@ class SegmentedPrism(Prism):
         self.vertices = self.generate_vertices()
         self.setup()
 
-
     def generate_vertices(self):
 
         radius = self.dimensions[0]
         height = self.dimensions[1]
-        segment_height = height/self.segments
+        segment_height = height / self.segments
         number_of_sides = self.sides
         initial_angle = pi / number_of_sides
 
@@ -2905,15 +3055,17 @@ class SegmentedPrism(Prism):
         # generate the second face via exude
         base_faces = [faces[0]]
         radius = 1.0
-        for index in range(1, self.segments+1):
+        for index in range(1, self.segments + 1):
             base_faces.append(Face())
 
-            if index < self.segments/4:
-                radius *= 1.0 + 0.1*index
+            if index < self.segments / 4:
+                radius *= 1.0 + 0.1 * index
             else:
-                radius *= 0.9 #+ .1*index
-            base_faces[index].extrude_from_other_face(other=base_faces[index - 1], direction=[0.0, 1.0, 0.0], distance=segment_height, radius=radius)
-            faces += self.stitch_faces(face_a=base_faces[index-1], face_b=base_faces[index], number_of_faces=number_of_sides)
+                radius *= 0.9  # + .1*index
+            base_faces[index].extrude_from_other_face(other=base_faces[index - 1], direction=[0.0, 1.0, 0.0],
+                                                      distance=segment_height, radius=radius)
+            faces += self.stitch_faces(face_a=base_faces[index - 1], face_b=base_faces[index],
+                                       number_of_faces=number_of_sides)
             if index == self.segments:
                 faces.append(base_faces[index])
 
@@ -2924,15 +3076,17 @@ class SegmentedPrism(Prism):
                         dtype=np.float32
                         ).flatten()
 
+
 class SegmentedPrismBevelCutTest(SegmentedPrism):
     """
     testing our bevel cut on an a multi-faced, non-axis-aligned mesh based
     """
+
     def generate_vertices(self):
 
         radius = self.dimensions[0]
         height = self.dimensions[1]
-        segment_height = height/self.segments
+        segment_height = height / self.segments
         number_of_sides = self.sides
         initial_angle = pi / number_of_sides
 
@@ -2949,21 +3103,23 @@ class SegmentedPrismBevelCutTest(SegmentedPrism):
         # generate the later N faces via exude
         base_faces = [faces[0]]
         radius = 1.0
-        for index in range(1, self.segments+1):
+        for index in range(1, self.segments + 1):
             base_faces.append(Face())
 
-            if index < self.segments/4:
-                radius *= 1.0 + 0.1*index
+            if index < self.segments / 4:
+                radius *= 1.0 + 0.1 * index
             else:
-                radius *= 0.9 #+ .1*index
-            base_faces[index].extrude_from_other_face(other=base_faces[index - 1], direction=[0.0, 1.0, 0.0], distance=segment_height, radius=radius)
+                radius *= 0.9  # + .1*index
+            base_faces[index].extrude_from_other_face(other=base_faces[index - 1], direction=[0.0, 1.0, 0.0],
+                                                      distance=segment_height, radius=radius)
             base_faces[index].radius = radius
-            faces += self.stitch_faces(face_a=base_faces[index-1], face_b=base_faces[index], number_of_faces=number_of_sides)
+            faces += self.stitch_faces(face_a=base_faces[index - 1], face_b=base_faces[index],
+                                       number_of_faces=number_of_sides)
             if index == self.segments:
                 faces.append(base_faces[index])
 
         vertices = []
-        #apply bevel cut
+        # apply bevel cut
         bevel_cut_faces = []
         # face_to_bevel_cut = faces.pop(len(faces)-1)
         # bevel_cut_faces = self.bevel_cut(face_to_bevel_cut)
@@ -2985,15 +3141,17 @@ class SegmentedPrismBevelCutTest(SegmentedPrism):
                         dtype=np.float32
                         ).flatten()
 
+
 class SegmentedPrismBevelPolygonCornerTest(SegmentedPrism):
     """
     using our bevel cut function (bevel_polygon_corner) on a base polygon.
     Also testing the divide_face_into_quads
     """
+
     def generate_vertices(self):
         radius = self.dimensions[0]
         height = self.dimensions[1]
-        segment_height = height/self.segments
+        segment_height = height / self.segments
         initial_angle = pi / self.sides
         angle_of_rotation = 2 * pi / self.sides
         vertices = []
@@ -3013,15 +3171,17 @@ class SegmentedPrismBevelPolygonCornerTest(SegmentedPrism):
         # generate the later N faces via exude
         base_faces = [faces[0]]
         radius = 1.0
-        for index in range(1, self.segments+1):
+        for index in range(1, self.segments + 1):
             base_faces.append(Face())
-            if index < self.segments/4:
-                radius *= 1.0 + 0.1*index
+            if index < self.segments / 4:
+                radius *= 1.0 + 0.1 * index
             else:
-                radius *= 0.9 #+ .1*index
-            base_faces[index].extrude_from_other_face(other=base_faces[index - 1], direction=[0.0, 1.0, 0.0], distance=segment_height, radius=radius)
+                radius *= 0.9  # + .1*index
+            base_faces[index].extrude_from_other_face(other=base_faces[index - 1], direction=[0.0, 1.0, 0.0],
+                                                      distance=segment_height, radius=radius)
             base_faces[index].radius = radius
-            faces += self.stitch_faces(face_a=base_faces[index-1], face_b=base_faces[index], number_of_faces=self.sides)
+            faces += self.stitch_faces(face_a=base_faces[index - 1], face_b=base_faces[index],
+                                       number_of_faces=self.sides)
             if index == self.segments:
                 faces.append(base_faces[index])
         """NEW quad subdivide of faces function testing"""
@@ -3040,15 +3200,16 @@ class SegmentedPrismBevelPolygonCornerTest(SegmentedPrism):
             face_to_cut = faces[index]
             bevel_cut_faces += self.bevel_cut(
                 face_to_cut,
-                bevel_depths = self.bevel_depths,
-                border_sizes = self.border_sizes,
+                bevel_depths=self.bevel_depths,
+                border_sizes=self.border_sizes,
                 depth=self.depth,
             )
         for face in bevel_cut_faces:
             vertices += face.face_to_list()
         return np.array(vertices,
                         dtype=np.float32
-        ).flatten()
+                        ).flatten()
+
 
 def calculate_normal(vertices=[]):
     """
@@ -3057,6 +3218,7 @@ def calculate_normal(vertices=[]):
     :return: a vec3 with the normal to this triangle
     """
     return glm.normalize(glm.cross(vertices[1] - vertices[0], vertices[2] - vertices[0]))
+
 
 def calculate_mean_point(points):
     """
@@ -3068,6 +3230,7 @@ def calculate_mean_point(points):
     for point in points:
         sum_point += point
     return sum_point / len(points)
+
 
 def list_to_vec3_list(current_list):
     """
@@ -3088,6 +3251,7 @@ def list_to_vec3_list(current_list):
         index += 3
     return reformated_list
 
+
 def vec3_list_to_list(vec3_list):
     """
     convert a list of points-as-vec3's to a serialized list
@@ -3098,6 +3262,7 @@ def vec3_list_to_list(vec3_list):
         serial_list += list(point)
     return serial_list
 
+
 def bezier_linear(points=[], intervals=0):
     """
     Linearly interpolate between two points
@@ -3106,11 +3271,12 @@ def bezier_linear(points=[], intervals=0):
     :return: a list of points (including start and end control points)
     """
     bezier_points = points.copy()
-    for step in range(1,intervals+1):
-        time = step*(1.0/intervals)
-        new_point = points[0] + time*(points[1]-points[0])
+    for step in range(1, intervals + 1):
+        time = step * (1.0 / intervals)
+        new_point = points[0] + time * (points[1] - points[0])
         bezier_points.insert(-1, new_point)
     return bezier_points
+
 
 def bezier_quadratic(points=[], intervals=0):
     """
@@ -3123,10 +3289,11 @@ def bezier_quadratic(points=[], intervals=0):
     control_points = points.copy()
     for step in range(1, intervals + 1):
         time = step * (1.0 / (intervals + 1))
-        new_point = control_points[1] + pow((1.0 - time), 2) * (control_points[0] - control_points[1]) + pow(time,2) * \
+        new_point = control_points[1] + pow((1.0 - time), 2) * (control_points[0] - control_points[1]) + pow(time, 2) * \
                     (control_points[2] - control_points[1])
         bezier_points.insert(-1, new_point)
     return bezier_points
+
 
 def bezier_cubic(points=[], intervals=0):
     """
@@ -3151,14 +3318,15 @@ def bezier_cubic(points=[], intervals=0):
     """
     bezier_points = [points[0], points[3]]
     control_points = points.copy()
-    fractional_interval = 1.0/(intervals + 1)
+    fractional_interval = 1.0 / (intervals + 1)
     for step in range(1, intervals + 1):
-        time = step*(fractional_interval)
+        time = step * (fractional_interval)
         reverse_time = 1.0 - time
-        new_point = pow(reverse_time, 3)*points[0] + 3.0 * pow(reverse_time, 2) * time * points[1] + \
-                    3.0*reverse_time*pow(time,2)*points[2] + pow(time,3)*points[3]
+        new_point = pow(reverse_time, 3) * points[0] + 3.0 * pow(reverse_time, 2) * time * points[1] + \
+                    3.0 * reverse_time * pow(time, 2) * points[2] + pow(time, 3) * points[3]
         bezier_points.insert(-1, new_point)
     return bezier_points
+
 
 def calculate_texture_coordinates_from_control_points(point, control_points):
     """
@@ -3172,12 +3340,13 @@ def calculate_texture_coordinates_from_control_points(point, control_points):
     height_delta = calculate_triangle_height(points=[control_points[2], point, control_points[1]])
     width_delta = calculate_triangle_height(points=[control_points[0], point, control_points[1]])
     texture_coordinates = glm.vec2(
-        glm.clamp(1.0 - width_delta/width, 0.0, 1.0),
-        glm.clamp(height_delta/height, 0.0, 1.0)
+        glm.clamp(1.0 - width_delta / width, 0.0, 1.0),
+        glm.clamp(height_delta / height, 0.0, 1.0)
     )
     return texture_coordinates
 
-def calculate_triangle_height(points = []):
+
+def calculate_triangle_height(points=[]):
     """
     Given 3 points of a triangle, return the height
     The points must be given counter-clockwise, with the first and third point forming the base
@@ -3188,8 +3357,9 @@ def calculate_triangle_height(points = []):
     triangle_sides = triangle_points_to_side_lengths(points=points)
     area = herons_formula(triangle_sides)
     base = glm.distance(points[0], points[2])
-    height = 2.0*area/base
+    height = 2.0 * area / base
     return height
+
 
 def triangle_points_to_side_lengths(points):
     """
@@ -3203,14 +3373,17 @@ def triangle_points_to_side_lengths(points):
     sides.append(glm.distance(points[2], points[0]))
     return sides
 
+
 def herons_formula(sides):
     """
     Uses Heron's Formula to calculate the area of a triangle given the three sides
     :param sides:
     :return: Area of the triangle
     """
-    return 0.25 * math.sqrt(4.0 * sides[0]*sides[0]*sides[1]*sides[1] - pow(sides[0]*sides[0] + sides[1]*sides[1] - \
-                                                                            sides[2]*sides[2], 2))
+    return 0.25 * math.sqrt(
+        4.0 * sides[0] * sides[0] * sides[1] * sides[1] - pow(sides[0] * sides[0] + sides[1] * sides[1] - \
+                                                              sides[2] * sides[2], 2))
+
 
 def rotate_list(current_list, steps):
     """
@@ -3225,11 +3398,13 @@ def rotate_list(current_list, steps):
     """
     return current_list[steps:] + current_list[:steps]
 
+
 def get_next_index(size, index):
     if index + 1 > size - 1:
         return 0
     else:
         return index + 1
+
 
 def get_previous_index(size, index):
     if index - 1 < 0:
