@@ -41,10 +41,8 @@ import PointLightCube as plc
 import ProceduralMesh as primatives
 import FPSCounter
 import SpaceShip
-from Menu import Menu
-from SpaceShip import Headquarters
-
 from GUI import GUI
+import Skybox as CubeMapSkybox
 
 #AUDIO
 from pydub import AudioSegment
@@ -55,6 +53,7 @@ from pydub.playback import play
 images = []
 
 follow_cam = SimulationCamera(camera_pos=[6.0, 247.0, 242.0])
+# follow_cam = SimulationCamera(camera_pos=[0.0, 0.0, 0.0])
 cam = Camera(camera_pos=[0.0, 20.0, 20.0])
 use_follow_cam = False
 
@@ -62,6 +61,7 @@ use_follow_cam = False
 
 # WIDTH, HEIGHT = 1280, 720
 WIDTH, HEIGHT = 1728, 972
+# WIDTH, HEIGHT = 64, 64
 lastX, lastY = WIDTH / 2, HEIGHT / 2
 first_mouse = True
 left, right, forward, backward, make_new_surface = False, False, False, False, False
@@ -73,9 +73,6 @@ make_new_ship = False
 pause = False
 ship_texture_cycle_id = 0
 
-
-"""Text MENU TESTING"""
-my_menu = Menu()
 # the keyboard input callback
 def key_input_clb(window, key, scancode, action, mode):
     global left, right, forward, backward, make_new_surface, player_left, player_right, player_forward, \
@@ -125,12 +122,15 @@ def key_input_clb(window, key, scancode, action, mode):
         write_to_gif = not write_to_gif
     if key == glfw.KEY_SPACE and action == glfw.PRESS:
         make_new_ship = True
+        change_skybox()
     if key == glfw.KEY_P and action == glfw.PRESS:
         pause = not pause
     if key == glfw.KEY_T and action == glfw.PRESS:
         cycle_ship_texture()
     if key == glfw.KEY_V and action == glfw.PRESS:
         switch_camera_mode()
+    if key == glfw.KEY_K and action == glfw.PRESS:
+        print_camera_position()
 
 
 def cycle_ship_texture(forward=True):
@@ -149,9 +149,9 @@ def cycle_ship_texture(forward=True):
         spaceship_parameters['emission'] = texture_dictionary['penguin_emission']
         update_spaceship_texture()
     elif ship_texture_cycle_id == 1:
-        spaceship_parameters['diffuse'] = texture_dictionary['atlas_debug_diffuse']
-        spaceship_parameters['specular'] = texture_dictionary['atlas_debug_specular']
-        spaceship_parameters['emission'] = texture_dictionary['atlas_debug_emission']
+        spaceship_parameters['diffuse'] = texture_dictionary['ship_a_diffuse']
+        spaceship_parameters['specular'] = texture_dictionary['ship_a_specular']
+        spaceship_parameters['emission'] = texture_dictionary['ship_a_emission']
         update_spaceship_texture()
     elif ship_texture_cycle_id == 2:
         spaceship_parameters['diffuse'] = texture_dictionary['whoa_diffuse']
@@ -164,9 +164,9 @@ def cycle_ship_texture(forward=True):
         spaceship_parameters['emission'] = texture_dictionary['spaceship_emission']
         update_spaceship_texture()
     elif ship_texture_cycle_id == 4:
-        spaceship_parameters['diffuse'] = texture_dictionary['ship_a_diffuse']
-        spaceship_parameters['specular'] = texture_dictionary['ship_a_specular']
-        spaceship_parameters['emission'] = texture_dictionary['ship_a_emission']
+        spaceship_parameters['diffuse'] = texture_dictionary['atlas_debug_diffuse']
+        spaceship_parameters['specular'] = texture_dictionary['atlas_debug_specular']
+        spaceship_parameters['emission'] = texture_dictionary['atlas_debug_emission']
         update_spaceship_texture()
 
 
@@ -191,21 +191,21 @@ def do_movement(speed=1.0):
     :return:
     """
     if left:
-        active_camera.process_keyboard("LEFT", 0.05*speed)
+        active_camera.process_keyboard("LEFT", speed)
     if right:
-        active_camera.process_keyboard("RIGHT", 0.05*speed)
+        active_camera.process_keyboard("RIGHT", speed)
     if forward:
-        active_camera.process_keyboard("FORWARD", 0.05*speed)
+        active_camera.process_keyboard("FORWARD", speed)
     if backward:
-        active_camera.process_keyboard("BACKWARD", 0.05*speed)
+        active_camera.process_keyboard("BACKWARD", speed)
     if yaw_clockwise:
-        follow_cam.process_keyboard("YAW_CLOCKWISE", 0.05)
+        follow_cam.process_keyboard("YAW_CLOCKWISE", speed)
     if yaw_counterclockwise:
-        follow_cam.process_keyboard("YAW_COUNTERCLOCKWISE", 0.05)
+        follow_cam.process_keyboard("YAW_COUNTERCLOCKWISE", speed)
     if up:
-        active_camera.process_keyboard("UP", 0.05)
+        active_camera.process_keyboard("UP", speed)
     if down:
-        active_camera.process_keyboard("DOWN", 0.05)
+        active_camera.process_keyboard("DOWN", speed)
 
 
 
@@ -245,16 +245,6 @@ out vec3 frag_pos;
 void main()
 {
     tex_coords = a_texture;
-    
-    /*
-    tex_coords = a_texture;
-    float q_coord = 0.9;    
-    if (tex_coords == vec2(1,1) || tex_coords == vec2(0,0)){
-        tex_coords = tex_coords / q_coord;
-        //tex_coords.x = tex_coords.x / q_coord;
-    }
-    */
-    
     frag_pos = vec3(model * vec4(a_position, 1.0));
     normal = mat3(transpose(inverse(model))) * a_normal;
     gl_Position = projection * view * vec4(frag_pos, 1.0);
@@ -477,9 +467,15 @@ def switch_camera_mode():
         active_camera = cam
 switch_camera_mode()
 
+def print_camera_position():
+    global active_cam
+    print(f'Camera Position: {active_camera.camera_pos}')
+
 shader = compileProgram(compileShader(vertex_src, GL_VERTEX_SHADER), compileShader(fragment_src, GL_FRAGMENT_SHADER))
 
-glEnable(GL_CULL_FACE)
+
+#uncomment to enable backfase culling
+# glEnable(GL_CULL_FACE)
 #uncomment to see that cull is working by culling front faces rather than back
 # glCullFace(GL_BACK)
 # glFrontFace(GL_CW)
@@ -559,28 +555,29 @@ glUniform3fv(glGetUniformLocation(shader, "dir_light.ambient"), 1, direction_amb
 glUniform3fv(glGetUniformLocation(shader, "dir_light.specular"), 1, direction_specular)
 
 
-textures = glGenTextures(21)
-load_texture("Textures/beige_atlas_diffuse.png", textures[0])
-load_texture("Textures/whoa_atlas_specular.png", textures[1])
-load_texture("Textures/penguin_atlas_emission.png", textures[2])
+textures = glGenTextures(25)
+load_texture("Textures/photo_texture_atlas_diffuse_3x3.png", textures[0])
+load_texture("Textures/photo_texture_atlas_specular_3x3.png", textures[1])
+load_texture("Textures/photo_texture_atlas_emission.png", textures[2])
 load_texture("Textures/debug_quad_red.png", textures[3])
 load_texture("Textures/penguin_atlas_specular.png", textures[4])
 load_texture("Textures/penguin_atlas_specular.png", textures[5])
 load_texture("Textures/debug_texture_atlas.png", textures[6])
-load_texture("Textures/spaceship_texture_atlas_1.png", textures[7])
-load_texture("Textures/spaceship_texture_atlas_1_specular.png", textures[8])
-load_texture("Textures/spaceship_texture_atlas_1_emission.png", textures[9])
+load_texture("Textures/blue_gold_diffuse.png", textures[7])
+load_texture("Textures/blue_gold_specular.png", textures[8])
+load_texture("Textures/no_emission.png", textures[9])
 load_texture("Textures/debug_diffuse_coordinates.png", textures[10])
 load_texture("Textures/penguin_atlas_emission.png", textures[11])
 load_texture("Textures/penguin_atlas_specular.png", textures[12])
-load_texture("Textures/whoa_atlas_diffuse.png", textures[13])
-load_texture("Textures/whoa_atlas_specular.png", textures[14])
+load_texture("Textures/whoa_atlas_diffuse_3x3.png", textures[13])
+load_texture("Textures/whoa_atlas_specular_3x3.png", textures[14])
 load_texture("Textures/penguin_atlas_emission.png", textures[15])
 load_texture("Fonts/my_font.png", textures[16])
-load_texture("Textures/button_atlas_workshop.png", textures[17])
-load_texture("Textures/ship_a_diffuse.png", textures[18])
-load_texture("Textures/ship_a_specular.png", textures[19])
-load_texture("Textures/ship_a_emission.png", textures[20])
+load_texture("Textures/button_atlas_gradient.png", textures[17])
+load_texture("Textures/dark_metal_diffuse.png", textures[18])
+load_texture("Textures/dark_metal_specular.png", textures[19])
+load_texture("Textures/dark_metal_emission.png", textures[20])
+load_texture("Textures/SkyboxLearnOpenGL.png", textures[21])
 
 
 texture_dictionary = {
@@ -602,6 +599,7 @@ texture_dictionary = {
     "ship_a_diffuse": textures[18],
     "ship_a_specular": textures[19],
     "ship_a_emission": textures[20],
+    "skybox_nebula": textures[21],
 }
 
 
@@ -610,7 +608,7 @@ debug_ship_orders = [
 ]
 
 spaceship_parameters = {
-    'number_of_sides': 4,
+    'number_of_sides': 6,
     'number_of_segments': 10,
     'transform_x': 1.0,
     'transform_z': 2.0,
@@ -621,10 +619,10 @@ spaceship_parameters = {
     # 'diffuse': texture_dictionary['spaceship_diffuse'],
     # 'specular': texture_dictionary['spaceship_specular'],
     # 'emission': texture_dictionary['spaceship_emission'],
-    'diffuse': texture_dictionary['whoa_diffuse'],
-    'specular': texture_dictionary['whoa_specular'],
-    'emission': texture_dictionary['whoa_emission'],
-    'position': [0.0, 0.0, 0.0],
+    'diffuse': texture_dictionary['penguin_diffuse'],
+    'specular': texture_dictionary['penguin_specular'],
+    'emission': texture_dictionary['penguin_emission'],
+    'position': [0.0, -50.0, 0.0],
     'length_of_segment': 10,
 }
 
@@ -808,7 +806,7 @@ shapes.append(
 ships = []
 num_ships = 1
 for ship in range(num_ships):
-    spaceship = primatives.Spaceship(
+    spaceship = primatives.Spaceship3x3(
         shader=shader,
         # diffuse=texture_dictionary['atlas_debug_diffuse'],
         # specular=texture_dictionary['atlas_debug_specular'],
@@ -830,7 +828,8 @@ for ship in range(num_ships):
         transform_z=spaceship_parameters['transform_z'],
         length_of_segment=spaceship_parameters['length_of_segment'],
         radius=3.0,
-        scale=spaceship_parameters['scale']
+        scale=spaceship_parameters['scale'],
+        seed=seed
     )
     ship_current = SpaceShip.Spaceship(model=spaceship, wallet=50)
     ship_current.set_velocity(velocity=[-1.5, 0.0, 0.0])
@@ -872,7 +871,7 @@ def generate_previous_ship(display=None):
 def generate_new_ship():
     global spaceship
     global seed
-    spaceship = primatives.Spaceship(
+    spaceship = primatives.Spaceship3x3(
         shader=shader,
         diffuse=spaceship_parameters['diffuse'],
         specular=spaceship_parameters['specular'],
@@ -974,7 +973,7 @@ test_gui.add_text_element(
     font_texture=texture_dictionary['font_atlas'],
     font_size=0.35,
     font_color=(1.0, 1.0, 1.0, 1.0),
-    text='4',
+    text='6',
 )
 #todo refactor this.  Need way to access text/element we want to update
 displayer = test_gui.elements[-1]
@@ -1362,7 +1361,6 @@ test_gui.add_text_button(
     font_color=(1.0, 1.0, 1.0, 1.0),
     text='+',
 )
-
 test_gui.add_text_button(
     shader=None,
     position=(0.50, 0.82),
@@ -1381,7 +1379,23 @@ test_gui.add_text_button(
     text='-',
 )
 
-
+test_gui.add_text_button(
+    shader=None,
+    position=(0.40, 0.95),
+    scale=(0.22, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=test_gui.toggle_context_status,
+    context_id='context_on',
+    context_status=True,
+    click_function_context_id='light',
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='Light',
+)
 test_gui.add_text_element(
     shader=None,
     position=(0.75, 0.62),
@@ -1389,7 +1403,7 @@ test_gui.add_text_element(
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=2,
-    context_id='button',
+    context_id='light',
     context_status=False,
     font_texture=texture_dictionary['font_atlas'],
     font_size=0.35,
@@ -1405,7 +1419,7 @@ test_gui.add_text_button(
     atlas_size=2,
     atlas_coordinate=(2, 1),
     click_function=increase_light_brightness,
-    context_id='button',
+    context_id='light',
     context_status=False,
     color=(1.0, 1.0, 1.0, 1.0),
     font_texture=texture_dictionary['font_atlas'],
@@ -1422,7 +1436,7 @@ test_gui.add_text_button(
     atlas_size=2,
     atlas_coordinate=(2, 1),
     click_function=decrease_light_brightness,
-    context_id='button',
+    context_id='light',
     context_status=False,
     color=(1.0, 1.0, 1.0, 1.0),
     font_texture=texture_dictionary['font_atlas'],
@@ -1439,7 +1453,7 @@ test_gui.add_text_element(
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=2,
-    context_id='button',
+    context_id='light',
     context_status=False,
     font_texture=texture_dictionary['font_atlas'],
     font_size=0.35,
@@ -1455,7 +1469,7 @@ test_gui.add_text_button(
     atlas_size=2,
     atlas_coordinate=(2, 1),
     click_function=increase_specular_brightness,
-    context_id='button',
+    context_id='light',
     context_status=False,
     color=(1.0, 1.0, 1.0, 1.0),
     font_texture=texture_dictionary['font_atlas'],
@@ -1472,7 +1486,7 @@ test_gui.add_text_button(
     atlas_size=2,
     atlas_coordinate=(2, 1),
     click_function=decrease_specular_brightness,
-    context_id='button',
+    context_id='light',
     context_status=False,
     color=(1.0, 1.0, 1.0, 1.0),
     font_texture=texture_dictionary['font_atlas'],
@@ -1481,7 +1495,7 @@ test_gui.add_text_button(
     text='-',
 )
 
-#Specular
+#Diffuse
 test_gui.add_text_element(
     shader=None,
     position=(0.75, 0.40),
@@ -1489,7 +1503,7 @@ test_gui.add_text_element(
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=2,
-    context_id='button',
+    context_id='light',
     context_status=False,
     font_texture=texture_dictionary['font_atlas'],
     font_size=0.35,
@@ -1505,7 +1519,7 @@ test_gui.add_text_button(
     atlas_size=2,
     atlas_coordinate=(2, 1),
     click_function=increase_diffuse_brightness,
-    context_id='button',
+    context_id='light',
     context_status=False,
     color=(1.0, 1.0, 1.0, 1.0),
     font_texture=texture_dictionary['font_atlas'],
@@ -1522,7 +1536,7 @@ test_gui.add_text_button(
     atlas_size=2,
     atlas_coordinate=(2, 1),
     click_function=decrease_diffuse_brightness,
-    context_id='button',
+    context_id='light',
     context_status=False,
     color=(1.0, 1.0, 1.0, 1.0),
     font_texture=texture_dictionary['font_atlas'],
@@ -1532,21 +1546,124 @@ test_gui.add_text_button(
 )
 
 
+
+
+
+"""SKYBOX"""
+skybox = ProceduralMesh.SkyboxEmission(
+    shader=shader,
+    # material properties
+    diffuse=texture_dictionary["whoa_emission"],
+    specular=texture_dictionary["whoa_emission"],
+    emission=texture_dictionary["skybox_nebula"],
+    shininess=0.0,
+    # mesh properties
+    dimensions=(5.0, 5.0, 5.0),
+    position=active_camera.camera_pos,
+    rotation_magnitude=(0, 0, 0),
+    rotation_axis=(0.0, 0.0, 1.0),
+    scale=(1000.0, 1000.0, 1000.0),)
+
+skybox_test = ProceduralMesh.SkyboxEmission(
+    shader=shader,
+    # material properties
+    diffuse=texture_dictionary["whoa_emission"],
+    specular=texture_dictionary["whoa_emission"],
+    emission=texture_dictionary["atlas_debug_diffuse"],
+    shininess=0.0,
+    # mesh properties
+    dimensions=(5.0, 5.0, 5.0),
+    position=(0.0, 50.0, 0.0),
+    rotation_magnitude=(0, 0, 0),
+    rotation_axis=(0.0, 0.0, 1.0),
+    scale=(50.0, 50.0, 50.0),)
+
+"""NEW: cubemap skybox"""
+
+cubemaps = {
+    2: [
+        "Textures/Skyboxes/mountain_lake/right.jpg",
+        "Textures/Skyboxes/mountain_lake/left.jpg",
+        "Textures/Skyboxes/mountain_lake/top.jpg",
+        "Textures/Skyboxes/mountain_lake/bottom.jpg",
+        "Textures/Skyboxes/mountain_lake/front.jpg",
+        "Textures/Skyboxes/mountain_lake/back.jpg",
+    ],
+    0: [
+        "Textures/Skyboxes/galaxy/galaxy+X.png",
+        "Textures/Skyboxes/galaxy/galaxy-X.png",
+        "Textures/Skyboxes/galaxy/galaxy+Y.png",
+        "Textures/Skyboxes/galaxy/galaxy-Y.png",
+        "Textures/Skyboxes/galaxy/galaxy+Z.png",
+        "Textures/Skyboxes/galaxy/galaxy-Z.png",
+    ],
+    1: [
+        "Textures/Skyboxes/nebula/skybox_left.png",
+        "Textures/Skyboxes/nebula/skybox_right.png",
+        "Textures/Skyboxes/nebula/skybox_up.png",
+        "Textures/Skyboxes/nebula/skybox_down.png",
+        "Textures/Skyboxes/nebula/skybox_front.png",
+        "Textures/Skyboxes/nebula/skybox_back.png",
+    ]
+}
+
+skybox_cube_map = CubeMapSkybox.Skybox(
+    texture_paths=cubemaps[0],
+    scale=8000,
+)
+skybox_index = 0
+
+
+def change_skybox():
+    global skybox_cube_map
+    global skybox_index
+    MAX_SKYBOX_INDEX = 2
+    skybox_index += 1
+    if skybox_index > MAX_SKYBOX_INDEX:
+        skybox_index = 0
+    skybox_cube_map = CubeMapSkybox.Skybox(
+        texture_paths=cubemaps[skybox_index],
+        scale=8000,
+    )
+
+
+
+test_gui.add_text_button(
+    shader=None,
+    position=(0.7, 0.57),
+    scale=(0.25, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=change_skybox,
+    context_id='button',
+    context_status=False,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='Skybox',
+)
+
+
 #must call as final setup of GUI
 test_gui.build_elements_list()
 
+time_start = 0
+time_end = 1/60
+time_delta = 1.0
 
 while not glfw.window_should_close(window):
     glfw.poll_events()
-    do_movement(speed=100)
+    time_start = glfw.get_time()
+    do_movement(speed=100 * (time_delta))
+
     fps = my_fps.update()
     display_fps.update_text(text=str(round(my_fps.get_fps(), 1)))
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
     view = active_camera.get_view_matrix()
     glUniformMatrix4fv(view_loc, 1, GL_FALSE, view)
-
-
 
     for mesh in meshes:
         mesh.draw(view=view)
@@ -1555,7 +1672,7 @@ while not glfw.window_should_close(window):
     #     shape.draw(view=view)
 
     """Mouse Hover on GUI"""
-    #todo: mouse hover is very expensive!
+    #todo: mouse hover is very expensive! Consider spatial partition
     if use_follow_cam:
         test_gui.button_update(position_mouse=glfw.get_cursor_pos(window), left_click=False, right_click=False)
 
@@ -1573,8 +1690,17 @@ while not glfw.window_should_close(window):
 
     glUniformMatrix4fv(view_loc, 1, GL_FALSE, view)
 
-    projection = pyrr.matrix44.create_perspective_projection_matrix(45, WIDTH / HEIGHT, 0.1, 2050)
+    projection = pyrr.matrix44.create_perspective_projection_matrix(45, WIDTH / HEIGHT, 0.1, 20050)
     glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection)
+
+    # todo: old naive skybox system.  Remove later
+    # skybox.set_position(active_camera.camera_pos)
+    # skybox.draw(view=view)
+    # skybox_test.draw(view=view)
+    """NEW Skybox"""
+    skybox_cube_map.draw(view=view, projection=projection)
+    glUseProgram(shader)
+
 
     # pass cam position for specular light
     glUniform3fv(view_pos_loc, 1, list(active_camera.camera_pos))
@@ -1620,8 +1746,9 @@ while not glfw.window_should_close(window):
 
     glUseProgram(shader)
 
-
     glfw.swap_buffers(window)
+    time_end = glfw.get_time()
+    time_delta = time_end - time_start
 
 if write_to_gif:
     images[0].save(

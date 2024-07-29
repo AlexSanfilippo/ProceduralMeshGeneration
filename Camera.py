@@ -218,21 +218,21 @@ class SimulationCamera(FollowCamera):
     def process_keyboard(self, direction, velocity):
         sim_front = vec3(self.camera_front.x, 0.0, self.camera_front.z)
         if direction == "FORWARD":
-            self.camera_pos += sim_front * velocity
+            self.camera_pos += sim_front * velocity * 2.5
             self.calculate_target()
         if direction == "BACKWARD":
-            self.camera_pos += -sim_front * velocity
+            self.camera_pos += -sim_front * velocity * 2.5
             self.calculate_target()
         if direction == "LEFT":
-            self.camera_pos += -self.camera_right * velocity
+            self.camera_pos += -self.camera_right * velocity * 2.5
             self.calculate_target()
         if direction == "RIGHT":
-            self.camera_pos += self.camera_right * velocity
+            self.camera_pos += self.camera_right * velocity * 2.5
             self.calculate_target()
         if direction == "YAW_CLOCKWISE":
             pos_from_center = self.camera_pos - self.target_position
-            self.angle += 0.035
-            distance_from_origin = sqrt(pow(pos_from_center.x,2) + pow(pos_from_center.z,2))
+            self.angle += 0.015 * velocity
+            distance_from_origin = sqrt(pow(pos_from_center.x, 2) + pow(pos_from_center.z, 2))
             pos_from_center.z = sin(self.angle)*distance_from_origin
             pos_from_center.x = cos(self.angle)*distance_from_origin
             self.camera_pos = pos_from_center + self.target_position
@@ -240,7 +240,7 @@ class SimulationCamera(FollowCamera):
             self.offset = self.calculate_offset()
         if direction == "YAW_COUNTERCLOCKWISE":
             pos_from_center = self.camera_pos - self.target_position
-            self.angle -= 0.035
+            self.angle -= 0.015 * velocity
             distance_from_origin = sqrt(pow(pos_from_center.x, 2) + pow(pos_from_center.z, 2))
             pos_from_center.z = sin(self.angle) * distance_from_origin
             pos_from_center.x = cos(self.angle) * distance_from_origin
@@ -248,10 +248,10 @@ class SimulationCamera(FollowCamera):
             self.update_camera_vectors()
             self.offset = self.calculate_offset()
         if direction == "DOWN":
-            self.camera_pos -= vec3(0.0, 1.5, 0.0)
+            self.camera_pos -= vec3(0.0, 1.5, 0.0) * velocity * 2.0
             self.update_camera_vectors()
         if direction == "UP":
-            self.camera_pos += vec3(0.0, 1.5, 0.0)
+            self.camera_pos += vec3(0.0, 1.5, 0.0) * velocity * 2.0
             self.update_camera_vectors()
 
 

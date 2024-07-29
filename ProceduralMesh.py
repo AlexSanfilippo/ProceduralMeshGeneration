@@ -226,7 +226,7 @@ vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 frag_pos, vec3 view_dir)
 """
 
 
-class PrimativeMesh():
+class PrimativeMesh:
     """
     abstract parent of all primative meshes
         -draws quad by default
@@ -1073,6 +1073,31 @@ class Spaceship(PrimativeMeshEmission):
             scale=scale,
         )
 
+    @property
+    def texture_atlas_size(self):
+        return 2
+
+    def get_radius_mulitipliers(self):
+        """
+        Produces a list of radius multipliers to determine the ships overall shape
+        :return:
+        """
+        RADIUS_MAX = self.radius * (0.1029 * self.number_of_segments) + self.radius
+        RADIUS_MIN = self.radius * (0.0294 * self.number_of_segments) + 0.5
+
+        control_point_count = self.number_of_segments
+
+        #set control point radii
+        control_points = []
+        control_points_relative = []
+        last_point = self.radius
+        for index in range(control_point_count):
+            if index > 0:
+                last_point = control_points[index-1]
+            control_points.append((random() * (RADIUS_MAX - RADIUS_MIN) + RADIUS_MIN))
+            control_points_relative.append(control_points[index] / last_point)
+        return control_points_relative
+
     def generate_vertices(self):
         """
         Where the mesh is generated, vertex by vertex.
@@ -1086,7 +1111,10 @@ class Spaceship(PrimativeMeshEmission):
                 transform_z=self.transform_z,
             )
         ]
-        faces[0].update_texture_coords_using_atlas_index(texture_atlas_index=1, texture_atlas_size=2)
+        faces[0].update_texture_coords_using_atlas_index(
+            texture_atlas_index=1,
+            texture_atlas_size=self.texture_atlas_size,
+        )
 
         # generate the latter faces via extruding
         segment_faces = []
@@ -1094,22 +1122,11 @@ class Spaceship(PrimativeMeshEmission):
         current_radius = self.radius
         MINIMUM_RADIUS = 2.5
         MAXIMUM_RADIUS = 4.0 + self.number_of_segments * 0.5
+
+        radius_multipliers = self.get_radius_mulitipliers()
         for i in range(self.number_of_segments):
             face_extruded = Face()
-            radius_multiplier_current_segment = self.determine_radius(
-                i,
-                self.number_of_segments,
-                radius_multiplier_current_segment,
-                minimum_radius_multipler=0.5,
-                maximum_radius_multipler=2.0,
-                growth=1.0 + random() * 3,
-                shrinkage=random() * 0.5 + 0.5,
-
-            )
-            current_radius *= radius_multiplier_current_segment
-            if current_radius < MINIMUM_RADIUS or current_radius > MAXIMUM_RADIUS:
-                radius_multiplier_current_segment = 1.0
-            # old extrude-want to replace with one that does flip the face around properly for texturing
+            radius_multiplier_current_segment = radius_multipliers[i]
             face_extruded.extrude_from_other_face(
                 other=faces[i],
                 direction=list(faces[i].calculate_normal()),
@@ -1126,7 +1143,7 @@ class Spaceship(PrimativeMeshEmission):
             segment_faces += faces_from_stitch
         faces[-1].update_texture_coords_using_atlas_index(
             texture_atlas_index=3,
-            texture_atlas_size=2,
+            texture_atlas_size=self.texture_atlas_size,
         )
         faces += self.generate_thrusters(face=faces[-1])
         faces += self.add_detail_to_faces(faces_to_alter=segment_faces)
@@ -1145,9 +1162,15 @@ class Spaceship(PrimativeMeshEmission):
 
         # texturing
         thruster_backend = thruster_faces.pop(-(self.number_of_sides + 1))
-        thruster_backend.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=0)
+        thruster_backend.update_texture_coords_using_atlas_index(
+            texture_atlas_size=self.texture_atlas_size,
+            texture_atlas_index=4,
+        )
         for face in thruster_faces:
-            face.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=3)
+            face.update_texture_coords_using_atlas_index(
+                texture_atlas_size=self.texture_atlas_size,
+                texture_atlas_index=2,
+            )
 
         return thruster_faces + [thruster_backend]
 
@@ -1176,9 +1199,15 @@ class Spaceship(PrimativeMeshEmission):
 
         # texturing
         # todo:reenable
-        face_nose_tip.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=1)
+        face_nose_tip.update_texture_coords_using_atlas_index(
+            texture_atlas_size=self.texture_atlas_size,
+            texture_atlas_index=1,
+        )
         for face in faces_from_stitch:
-            face.update_texture_coords_using_atlas_index(texture_atlas_size=2, texture_atlas_index=2)
+            face.update_texture_coords_using_atlas_index(
+                texture_atlas_size=self.texture_atlas_size,
+                texture_atlas_index=2,
+            )
 
         # return new faces
         faces_nose += [face_nose_tip] + faces_from_stitch
@@ -1195,7 +1224,8 @@ class Spaceship(PrimativeMeshEmission):
             shrinkage=0.5,
     ):
 
-        if i < floor(random() * number_of_segments):
+        # if i < floor(random() * number_of_segments):
+        if i < floor(random() * 7):
             radius_multiplier = min(growth * radius_multiplier, maximum_radius_multipler)
         else:
             if radius_multiplier > 1.0:
@@ -1348,7 +1378,10 @@ class Spaceship(PrimativeMeshEmission):
         # for face in faces_altered:
         #     face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
         for face in faces_unaltered:
-            face.update_texture_coords_using_atlas_index(texture_atlas_index=0, texture_atlas_size=2)
+            face.update_texture_coords_using_atlas_index(
+                texture_atlas_index=0,
+                texture_atlas_size=self.texture_atlas_size,
+            )
         return faces_altered + faces_unaltered
 
         # faces_altered = []
@@ -1377,9 +1410,15 @@ class Spaceship(PrimativeMeshEmission):
                 border_sizes=border_sizes[1:2],
                 depth=1
             )
-            faces_one_bevel[0].update_texture_coords_using_atlas_index(texture_atlas_index=1, texture_atlas_size=2)
+            faces_one_bevel[0].update_texture_coords_using_atlas_index(
+                texture_atlas_index=1,
+                texture_atlas_size=self.texture_atlas_size,
+            )
             for face in faces_one_bevel:
-                face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
+                face.update_texture_coords_using_atlas_index(
+                    texture_atlas_index=2,
+                    texture_atlas_size=self.texture_atlas_size,
+                )
             faces_updated += faces_one_bevel
         return faces_updated
 
@@ -1402,10 +1441,13 @@ class Spaceship(PrimativeMeshEmission):
             )
         del local_faces_altered[intake_index]
         for face in local_faces_altered:
-            face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
+            face.update_texture_coords_using_atlas_index(
+                texture_atlas_index=2,
+                texture_atlas_size=self.texture_atlas_size,
+            )
         for face in intake_faces_altered:
-            face.update_texture_coords_using_atlas_index(texture_atlas_index=0, texture_atlas_size=2)
-        intake_faces_altered[-5].update_texture_coords_using_atlas_index(texture_atlas_index=3, texture_atlas_size=2)
+            face.update_texture_coords_using_atlas_index(texture_atlas_index=0, texture_atlas_size=self.texture_atlas_size)
+        intake_faces_altered[-5].update_texture_coords_using_atlas_index(texture_atlas_index=3, texture_atlas_size=self.texture_atlas_size)
 
         # del local_faces_altered[4]
 
@@ -1450,11 +1492,11 @@ class Spaceship(PrimativeMeshEmission):
                     depth=2,
                 )
                 faces_special_bevel[-5].update_texture_coords_using_atlas_index(texture_atlas_index=3,
-                                                                                texture_atlas_size=2)
+                                                                                texture_atlas_size=self.texture_atlas_size)
                 for face in faces_special_bevel[:-5]:
-                    face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
+                    face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=self.texture_atlas_size)
                 for face in faces_special_bevel[-4:]:
-                    face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
+                    face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=self.texture_atlas_size)
                 local_faces_altered += faces_special_bevel
             else:
                 local_faces_unaltered += [face]
@@ -1468,7 +1510,7 @@ class Spaceship(PrimativeMeshEmission):
         for face in faces_altered_local:
             face.update_texture_coords_using_atlas_index(
                 texture_atlas_index=2,
-                texture_atlas_size=2
+                texture_atlas_size=self.texture_atlas_size
             )
         return faces_altered_local
 
@@ -1485,12 +1527,12 @@ class Spaceship(PrimativeMeshEmission):
             )
             faces_current_cubby[0].update_texture_coords_using_atlas_index(
                 texture_atlas_index=3,  # todo: change to 1
-                texture_atlas_size=2
+                texture_atlas_size=self.texture_atlas_size
             )
             for face in faces_current_cubby[1:]:
                 face.update_texture_coords_using_atlas_index(
-                    texture_atlas_index=2,  # todo: change to 2
-                    texture_atlas_size=2
+                    texture_atlas_index=2,
+                    texture_atlas_size=self.texture_atlas_size,
                 )
             faces_altered_local += faces_current_cubby
         return faces_altered_local
@@ -1521,6 +1563,12 @@ class Spaceship(PrimativeMeshEmission):
             dtype=np.float32
         ).flatten()
         return faces
+
+
+class Spaceship3x3(Spaceship):
+    @property
+    def texture_atlas_size(self):
+        return 3
 
 
 class Polygon(PrimativeMesh):
@@ -2169,7 +2217,7 @@ class Face():
 
         # texture atlas index into row and column indices
         column_index = float(texture_atlas_index % texture_atlas_size)
-        row_index = 1.0 - math.floor(texture_atlas_index / texture_atlas_size)
+        row_index = (texture_atlas_size - 1) - math.floor(texture_atlas_index / texture_atlas_size)
 
         # row and column indices into lower and upper bounds of texture coords (4 total)
         # column (x-axis)lower and upper

@@ -104,6 +104,7 @@ class Spaceship:
         headquarters.wallet += deposit
         self.wallet -= deposit
         self.profit = deposit
+
     def move(self, delta_time):
         self.model.position += self.velocity * delta_time
 
