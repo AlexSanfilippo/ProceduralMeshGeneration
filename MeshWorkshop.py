@@ -43,6 +43,7 @@ import FPSCounter
 import SpaceShip
 from GUI import GUI
 import Skybox as CubeMapSkybox
+from tkinter import filedialog
 
 #AUDIO
 from pydub import AudioSegment
@@ -613,18 +614,13 @@ spaceship_parameters = {
     'transform_x': 1.0,
     'transform_z': 2.0,
     'scale': 3.3,
-    # 'diffuse': texture_dictionary['ship_a_diffuse'],
-    # 'specular': texture_dictionary['ship_a_specular'],
-    # 'emission': texture_dictionary['ship_a_emission'],
-    # 'diffuse': texture_dictionary['spaceship_diffuse'],
-    # 'specular': texture_dictionary['spaceship_specular'],
-    # 'emission': texture_dictionary['spaceship_emission'],
     'diffuse': texture_dictionary['penguin_diffuse'],
     'specular': texture_dictionary['penguin_specular'],
     'emission': texture_dictionary['penguin_emission'],
     'position': [0.0, -50.0, 0.0],
     'length_of_segment': 10,
 }
+
 
 def update_spaceship_parameters(key, value):
     spaceship_parameters[key] = value
@@ -1543,6 +1539,32 @@ test_gui.add_text_button(
     font_size=0.35,
     font_color=(1.0, 1.0, 1.0, 1.0),
     text='-',
+)
+
+
+def export_ship():
+    """
+    Export the ship model as a wavefront obj file
+    """
+    filename = filedialog.asksaveasfilename()
+    meshes[0].model.export_as_obj(filename=filename)
+
+
+test_gui.add_text_button(
+    shader=None,
+    position=(0.5, 0.5),
+    scale=(0.25, 0.05),
+    texture=texture_dictionary['button_atlas'],
+    atlas_size=2,
+    atlas_coordinate=(2, 1),
+    click_function=export_ship,
+    context_id='context_on',
+    context_status=True,
+    color=(1.0, 1.0, 1.0, 1.0),
+    font_texture=texture_dictionary['font_atlas'],
+    font_size=0.35,
+    font_color=(1.0, 0.0, 1.0, 1.0),
+    text='E',
 )
 
 
