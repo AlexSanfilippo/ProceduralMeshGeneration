@@ -7,5 +7,5 @@ PyGLM==2.7.1
 PyOpenGL==3.1.7        
 pyrr==0.10.3
 
-
-![EXAMPLE TEXT](https://github.com/[AlexSanfilippo]/[ProceduralMeshGeneration]/blob/[branch]/image.jpg?raw=true)
+https://github.com/AlexSanfilippo/ProceduralMeshGeneration/tree/master/GitHubExamples/BlenderDemoTwoShips.png
+![EXAMPLE TEXT](https://github.com/AlexSanfilippo/ProceduralMeshGeneration/tree/master/GitHubExamples/BlenderDemoTwoShips.png?raw=true)
