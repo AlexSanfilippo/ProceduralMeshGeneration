@@ -1097,16 +1097,14 @@ class Spaceship(PrimativeMeshEmission):
     def texture_atlas_size(self):
         return 2
 
-    def get_radius_mulitipliers(self):
+    def get_radius_multipliers(self):
         """
         Produces a list of radius multipliers to determine the ships overall shape
         :return:
         """
         RADIUS_MAX = self.radius * (0.1029 * self.number_of_segments) + self.radius
         RADIUS_MIN = self.radius * (0.0294 * self.number_of_segments) + 0.5
-
         control_point_count = self.number_of_segments
-
         #set control point radii
         control_points = []
         control_points_relative = []
@@ -1119,7 +1117,6 @@ class Spaceship(PrimativeMeshEmission):
         return control_points_relative
 
     def export_as_obj(self, filename=None):
-
         r.seed(self.seed)
         faces = self.generate_faces()
         vertices_obj = []
@@ -1148,7 +1145,6 @@ class Spaceship(PrimativeMeshEmission):
                 for face_current in faces_current:
                     faces_obj.append(face_current)
 
-            # Write the positional vertices to file
             for vertex in vertices_obj:
                 file.write(f'v {vertex.positions.x} {vertex.positions.y} {vertex.positions.z}\n')
             file.write('\n')
@@ -1165,7 +1161,6 @@ class Spaceship(PrimativeMeshEmission):
                     file.write(f' {vertex}/{vertex}/{vertex}')
                 file.write('\n')
 
-        print('wrote model to file')
 
     @serialize_faces
     def generate_vertices(self):
@@ -1190,7 +1185,7 @@ class Spaceship(PrimativeMeshEmission):
         )
         # generate the latter faces via extruding
         segment_faces = []
-        radius_multipliers = self.get_radius_mulitipliers()
+        radius_multipliers = self.get_radius_multipliers()
         for i in range(self.number_of_segments):
             face_extruded = Face()
             radius_multiplier_current_segment = radius_multipliers[i]
@@ -1290,8 +1285,6 @@ class Spaceship(PrimativeMeshEmission):
             growth=1.25,
             shrinkage=0.5,
     ):
-
-        # if i < floor(random() * number_of_segments):
         if i < floor(random() * 7):
             radius_multiplier = min(growth * radius_multiplier, maximum_radius_multipler)
         else:
@@ -1299,48 +1292,6 @@ class Spaceship(PrimativeMeshEmission):
                 radius_multiplier = 1.0
             radius_multiplier = max(shrinkage * radius_multiplier, minimum_radius_multipler)
         return radius_multiplier
-
-    # def add_detail_to_faces(self, faces_to_alter):
-    #     faces_altered = []
-    #     for face in faces_to_alter:
-    #         if random() < 0.25:
-    #             current_stitch_faces = []
-    #             current_stitch_faces += self.subdivide_quad_lengthwise(face=face, subdivisions=2, widthwise=True)
-    #             for new_stitch_face in current_stitch_faces:
-    #                 faces_altered += self.bevel_cut(
-    #                     original_face=new_stitch_face,
-    #                     bevel_depths=[-0.33],
-    #                     border_sizes=[0.6],
-    #                     depth=1,
-    #                 )
-    #         elif random() < 0.25:
-    #             current_stitch_faces = []
-    #             current_stitch_faces += self.pyrimidize_face(original_face=face, center_point_offset=2.5)
-    #             faces_altered += current_stitch_faces
-    #         elif random() < 0.5:
-    #             current_stitch_faces = self.extrude_and_stitch(face, scale=1.0, distance=floor(self.length_of_segment*0.25))
-    #             recursion_count = 1
-    #             for i in range(recursion_count):
-    #                 final_faces = []
-    #                 for face in current_stitch_faces:
-    #                     final_faces += self.extrude_and_stitch(face, scale=1.0, distance=floor(self.length_of_segment*0.25))
-    #                 current_stitch_faces = final_faces
-    #
-    #             faces_post_bevel = []
-    #             for face in final_faces:
-    #                 faces_post_bevel += self.bevel_cut(
-    #                     original_face=face,
-    #                     bevel_depths=[0.33],
-    #                     border_sizes=[0.6],
-    #                     depth=1,
-    #                 )
-    #             faces_altered += faces_post_bevel
-    #
-    #         else:
-    #             faces_altered += [face]
-    #     for face in faces_altered:
-    #         face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
-    #     return faces_altered
 
     def add_detail_to_faces(self, faces_to_alter):
         """
@@ -1351,7 +1302,7 @@ class Spaceship(PrimativeMeshEmission):
 
         if self.number_of_sides % 3 == 0:
             symmetry_type = 'triangular'
-        elif self.number_of_sides % 2 == 0:
+        elif self.number_of_sides % 2 == 0 and self.number_of_sides != 10:
             symmetry_type = 'square'
         else:
             symmetry_type = 'irregular'
@@ -1365,7 +1316,6 @@ class Spaceship(PrimativeMeshEmission):
                     instructions_per_pair.append(random())
                 instructions_per_segment.append(instructions_per_pair)
             elif symmetry_type == 'triangular':
-                # instructions_per_segment.append((random(), random(), random()))
                 number_of_triplets = int(self.number_of_sides / 3)
                 instructions_per_pair = []
                 for i in range(number_of_triplets):
@@ -1442,8 +1392,6 @@ class Spaceship(PrimativeMeshEmission):
                     faces_unaltered += faces_unaltered_local
 
         # todo: texturing should happen within detail-applying-functions.
-        # for face in faces_altered:
-        #     face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
         for face in faces_unaltered:
             face.update_texture_coords_using_atlas_index(
                 texture_atlas_index=0,
@@ -1451,23 +1399,7 @@ class Spaceship(PrimativeMeshEmission):
             )
         return faces_altered + faces_unaltered
 
-        # faces_altered = []
-        # for face in faces_to_alter:
-        #     if random() < 0.25:
-        #         faces_altered = self.add_detail_cubbies(face, faces_altered)
-        #     elif random() < 0.25:
-        #         faces_altered = self.add_detail_pyrimide(face, faces_altered)
-        #     elif random() < 0.5:
-        #         faces_altered = self.add_detail_recursive_extrude(face, faces_altered)
-        #
-        #     else:
-        #         faces_altered += [face]
-        # for face in faces_altered:
-        #     face.update_texture_coords_using_atlas_index(texture_atlas_index=2, texture_atlas_size=2)
-        # return faces_altered
-
     def add_detail_recursive_extrude(self, face, bevel_depths, border_sizes):
-
         first_extrusion = self.extrude_and_stitch(face=face, scale=1.0, distance=floor(self.length_of_segment * 0.25))
         faces_updated = []
         for face_current in first_extrusion:
@@ -1513,11 +1445,14 @@ class Spaceship(PrimativeMeshEmission):
                 texture_atlas_size=self.texture_atlas_size,
             )
         for face in intake_faces_altered:
-            face.update_texture_coords_using_atlas_index(texture_atlas_index=0, texture_atlas_size=self.texture_atlas_size)
-        intake_faces_altered[-5].update_texture_coords_using_atlas_index(texture_atlas_index=3, texture_atlas_size=self.texture_atlas_size)
-
-        # del local_faces_altered[4]
-
+            face.update_texture_coords_using_atlas_index(
+                texture_atlas_index=1,
+                texture_atlas_size=self.texture_atlas_size
+            )
+        intake_faces_altered[-5].update_texture_coords_using_atlas_index(
+            texture_atlas_index=3,
+            texture_atlas_size=self.texture_atlas_size
+        )
         return local_faces_altered + intake_faces_altered
 
     def detail_faces_by_instruction(

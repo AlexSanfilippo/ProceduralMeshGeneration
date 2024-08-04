@@ -1,26 +1,26 @@
 """
 4th February, 2024
-last update: 9th March, 2024
+last update: 4th August, 2024
 This files contains a code for creating and displaying our proc-gen spaceships
 
 -[V]upload to github(initial)
 -[V]Emission Map in our default shader
 -[V]clear out old WFC code
--[]basic spaceship generator (in primative_meshes)
+-[V]basic spaceship generator (in primative_meshes)
     MAJOR FEATURES
-    -[]basic segmented prism (main section)
+    -[V]basic segmented prism (main section)
         -[]Issue: Extrude is flipping texture around
             -I think we need to re-calcuate texture coordinates of new-face
                 -how to go from outer-coordinates to texture coordinates?
-    -[]make main section symmetrical
-    -[]front/cockpit/nose
-    -[]rear thrusters
-        -[]glowing (emission map)
+    -[V]make main section symmetrical
+    -[V]front/cockpit/nose
+    -[V]rear thrusters
+        -[V]glowing (emission map)
     -all one-mesh model
     -all in one texture  dictionary
 
 -[]some sort of propulsion trail on our ship
--[]a starry skybox around the ship
+-[V]a starry skybox around the ship
 -[]share and post on reddit, discord
 -[]a video documenting our process
 

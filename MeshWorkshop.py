@@ -160,9 +160,9 @@ def cycle_ship_texture(forward=True):
         spaceship_parameters['emission'] = texture_dictionary['atlas_debug_emission']
         update_spaceship_texture()
     elif ship_texture_cycle_id == 3:
-        spaceship_parameters['diffuse'] = texture_dictionary['spaceship_diffuse']
-        spaceship_parameters['specular'] = texture_dictionary['spaceship_specular']
-        spaceship_parameters['emission'] = texture_dictionary['spaceship_emission']
+        spaceship_parameters['diffuse'] = texture_dictionary['blue_metal_diffuse']
+        spaceship_parameters['specular'] = texture_dictionary['blue_metal_specular']
+        spaceship_parameters['emission'] = texture_dictionary['blue_metal_emission']
         update_spaceship_texture()
     elif ship_texture_cycle_id == 4:
         spaceship_parameters['diffuse'] = texture_dictionary['atlas_debug_diffuse']
@@ -544,9 +544,8 @@ debug_plcs.append(plc.PointLightCube(
     specular=[1.0, 1.0, 0.0],
 ))
 
-seed = 1999 + 12
+seed = 1946
 r.seed(seed)
-
 
 
 # direction light pass to shader
@@ -564,7 +563,7 @@ load_texture("Textures/debug_quad_red.png", textures[3])
 load_texture("Textures/penguin_atlas_specular.png", textures[4])
 load_texture("Textures/penguin_atlas_specular.png", textures[5])
 load_texture("Textures/debug_texture_atlas.png", textures[6])
-load_texture("Textures/blue_gold_diffuse.png", textures[7])
+load_texture("Textures/blue_gold_alt_diffuse.png", textures[7])
 load_texture("Textures/blue_gold_specular.png", textures[8])
 load_texture("Textures/no_emission.png", textures[9])
 load_texture("Textures/debug_diffuse_coordinates.png", textures[10])
@@ -586,9 +585,9 @@ texture_dictionary = {
     "penguin_diffuse": textures[0],
     "penguin_specular": textures[1],
     "penguin_emission": textures[2],
-    "spaceship_diffuse": textures[7],
-    "spaceship_specular": textures[8],
-    "spaceship_emission": textures[9],
+    "blue_metal_diffuse": textures[7],
+    "blue_metal_specular": textures[8],
+    "blue_metal_emission": textures[9],
     "atlas_debug_diffuse": textures[10],
     "atlas_debug_emission": textures[11],
     "atlas_debug_specular": textures[12],
@@ -609,8 +608,8 @@ debug_ship_orders = [
 ]
 
 spaceship_parameters = {
-    'number_of_sides': 6,
-    'number_of_segments': 10,
+    'number_of_sides': 8,
+    'number_of_segments': 5,
     'transform_x': 1.0,
     'transform_z': 2.0,
     'scale': 3.3,
@@ -864,6 +863,7 @@ def generate_previous_ship(display=None):
     if display:
         display.update_text(text='seed: ' + str(seed))
 
+
 def generate_new_ship():
     global spaceship
     global seed
@@ -893,8 +893,8 @@ def generate_new_ship():
 test_gui = GUI(screen_size=(WIDTH, HEIGHT))
 test_gui.add_text_element(
     shader=None,
-    position=(0.7, 0.7),
-    scale=(0.25, 0.05),
+    position=(0.75, 0.73),
+    scale=(0.20, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=2,
@@ -907,7 +907,7 @@ test_gui.add_text_element(
 )
 test_gui.add_text_button(
     shader=None,
-    position=(0.9, 0.70),
+    position=(0.95, 0.73),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -923,7 +923,7 @@ test_gui.add_text_button(
 )
 test_gui.add_text_button(
     shader=None,
-    position=(0.5, 0.70),
+    position=(0.5, 0.73),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -941,7 +941,7 @@ test_gui.add_text_button(
 
 test_gui.add_text_button(
     shader=None,
-    position=(0.85, 0.95),
+    position=(0.88, 0.95),
     scale=(0.12, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -959,8 +959,8 @@ test_gui.add_text_button(
 
 test_gui.add_text_element(
     shader=None,
-    position=(-0.18, 0.83),
-    scale=(0.05, 0.05),
+    position=(-0.25, 0.83),
+    scale=(0.08, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=2,
@@ -969,13 +969,13 @@ test_gui.add_text_element(
     font_texture=texture_dictionary['font_atlas'],
     font_size=0.35,
     font_color=(1.0, 1.0, 1.0, 1.0),
-    text='6',
+    text=str(spaceship_parameters['number_of_sides']),
 )
 #todo refactor this.  Need way to access text/element we want to update
 displayer = test_gui.elements[-1]
 test_gui.add_text_button(
     shader=None,
-    position=(-0.28, 0.83),
+    position=(-0.38, 0.83),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -992,7 +992,7 @@ test_gui.add_text_button(
 )
 test_gui.add_text_button(
     shader=None,
-    position=(-0.38, 0.83),
+    position=(-0.48, 0.83),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1025,8 +1025,8 @@ test_gui.add_text_element(
 
 test_gui.add_text_element(
     shader=None,
-    position=(-0.18, 0.73),
-    scale=(0.05, 0.05),
+    position=(-0.25, 0.73),
+    scale=(0.08, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=2,
@@ -1035,13 +1035,13 @@ test_gui.add_text_element(
     font_texture=texture_dictionary['font_atlas'],
     font_size=0.35,
     font_color=(1.0, 1.0, 1.0, 1.0),
-    text='10',
+    text=str(spaceship_parameters['number_of_segments']),
 )
 #todo refactor this.  Need way to access text/element we want to update
 displayer = test_gui.elements[-1]
 test_gui.add_text_button(
     shader=None,
-    position=(-0.38, .73),
+    position=(-0.48, .73),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1058,7 +1058,7 @@ test_gui.add_text_button(
 )
 test_gui.add_text_button(
     shader=None,
-    position=(-0.28, 0.73),
+    position=(-0.38, 0.73),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1091,7 +1091,7 @@ test_gui.add_text_element(
 
 test_gui.add_text_element(
     shader=None,
-    position=(-0.15, 0.63),
+    position=(-0.25, 0.63),
     scale=(0.08, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1121,7 +1121,7 @@ test_gui.add_text_element(
 )
 test_gui.add_text_button(
     shader=None,
-    position=(-0.28,  0.63),
+    position=(-0.38,  0.63),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1138,7 +1138,7 @@ test_gui.add_text_button(
 )
 test_gui.add_text_button(
     shader=None,
-    position=(-0.38,  0.63),
+    position=(-0.48,  0.63),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1170,8 +1170,8 @@ test_gui.add_text_element(
 )
 test_gui.add_text_element(
     shader=None,
-    position=(-0.13000000000000003, 0.53),
-    scale=(0.15, 0.05),
+    position=(-0.25, 0.53),
+    scale=(0.08, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=2,
@@ -1186,7 +1186,7 @@ test_gui.add_text_element(
 displayer = test_gui.elements[-1]
 test_gui.add_text_button(
     shader=None,
-    position=(-0.38, 0.53),
+    position=(-0.48, 0.53),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1204,7 +1204,7 @@ test_gui.add_text_button(
 
 test_gui.add_text_button(
     shader=None,
-    position=(-0.28, 0.53),
+    position=(-0.38, 0.53),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1238,8 +1238,8 @@ test_gui.add_text_element(
 )
 test_gui.add_text_element(
     shader=None,
-    position=(-0.13000000000000003, 0.42999999999999994),
-    scale=(0.15, 0.05),
+    position=(-0.25, 0.42999999999999994),
+    scale=(0.08, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=2,
@@ -1254,7 +1254,7 @@ test_gui.add_text_element(
 displayer = test_gui.elements[-1]
 test_gui.add_text_button(
     shader=None,
-    position=(-0.38, 0.42999999999999994),
+    position=(-0.48, 0.42999999999999994),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1272,7 +1272,7 @@ test_gui.add_text_button(
 
 test_gui.add_text_button(
     shader=None,
-    position=(-0.28, 0.42999999999999994),
+    position=(-0.38, 0.42999999999999994),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1326,7 +1326,7 @@ test_gui.add_text_button(
 
 test_gui.add_text_element(
     shader=None,
-    position=(0.75, 0.82),
+    position=(0.75, 0.83),
     scale=(0.20, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1336,13 +1336,13 @@ test_gui.add_text_element(
     font_texture=texture_dictionary['font_atlas'],
     font_size=0.35,
     font_color=(1.0, 1.0, 1.0, 1.0),
-    text='seed: ' + str(seed),
+    text='Seed: ' + str(seed),
 )
 #todo refactor this.  Need way to access text/element we want to update
 displayer = test_gui.elements[-1]
 test_gui.add_text_button(
     shader=None,
-    position=(0.95, 0.82),
+    position=(0.95, 0.83),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1359,7 +1359,7 @@ test_gui.add_text_button(
 )
 test_gui.add_text_button(
     shader=None,
-    position=(0.50, 0.82),
+    position=(0.50, 0.83),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1377,8 +1377,8 @@ test_gui.add_text_button(
 
 test_gui.add_text_button(
     shader=None,
-    position=(0.40, 0.95),
-    scale=(0.22, 0.05),
+    position=(-0.185, 0.95),
+    scale=(0.15, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=(2, 1),
@@ -1394,7 +1394,7 @@ test_gui.add_text_button(
 )
 test_gui.add_text_element(
     shader=None,
-    position=(0.75, 0.62),
+    position=(0.75, 0.52),
     scale=(0.20, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1409,7 +1409,7 @@ test_gui.add_text_element(
 displayer = test_gui.elements[-1]
 test_gui.add_text_button(
     shader=None,
-    position=(0.95, 0.62),
+    position=(0.95, 0.52),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1426,7 +1426,7 @@ test_gui.add_text_button(
 
 test_gui.add_text_button(
     shader=None,
-    position=(0.50, 0.62),
+    position=(0.50, 0.52),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1444,7 +1444,7 @@ test_gui.add_text_button(
 #Specular
 test_gui.add_text_element(
     shader=None,
-    position=(0.75, 0.50),
+    position=(0.75, 0.42),
     scale=(0.20, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1459,7 +1459,7 @@ test_gui.add_text_element(
 displayer = test_gui.elements[-1]
 test_gui.add_text_button(
     shader=None,
-    position=(0.95, 0.50),
+    position=(0.95, 0.42),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1476,7 +1476,7 @@ test_gui.add_text_button(
 
 test_gui.add_text_button(
     shader=None,
-    position=(0.50, 0.50),
+    position=(0.50, 0.42),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1494,7 +1494,7 @@ test_gui.add_text_button(
 #Diffuse
 test_gui.add_text_element(
     shader=None,
-    position=(0.75, 0.40),
+    position=(0.75, 0.32),
     scale=(0.20, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1509,7 +1509,7 @@ test_gui.add_text_element(
 displayer = test_gui.elements[-1]
 test_gui.add_text_button(
     shader=None,
-    position=(0.95, 0.40),
+    position=(0.95, 0.32),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1526,7 +1526,7 @@ test_gui.add_text_button(
 
 test_gui.add_text_button(
     shader=None,
-    position=(0.50, 0.40),
+    position=(0.50, 0.32),
     scale=(0.05, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
@@ -1552,8 +1552,8 @@ def export_ship():
 
 test_gui.add_text_button(
     shader=None,
-    position=(0.5, 0.5),
-    scale=(0.25, 0.05),
+    position=(0.11, 0.95),
+    scale=(0.15, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=(2, 1),
@@ -1563,8 +1563,8 @@ test_gui.add_text_button(
     color=(1.0, 1.0, 1.0, 1.0),
     font_texture=texture_dictionary['font_atlas'],
     font_size=0.35,
-    font_color=(1.0, 0.0, 1.0, 1.0),
-    text='E',
+    font_color=(1.0, 1.0, 1.0, 1.0),
+    text='Export',
 )
 
 
@@ -1652,8 +1652,8 @@ def change_skybox():
 
 test_gui.add_text_button(
     shader=None,
-    position=(0.7, 0.57),
-    scale=(0.25, 0.05),
+    position=(0.75, 0.63),
+    scale=(0.3, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=(2, 1),
