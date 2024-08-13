@@ -44,6 +44,8 @@ import SpaceShip
 from GUI import GUI
 import Skybox as CubeMapSkybox
 from tkinter import filedialog
+import gc
+from math import floor
 
 #AUDIO
 from pydub import AudioSegment
@@ -122,8 +124,7 @@ def key_input_clb(window, key, scancode, action, mode):
     if key == glfw.KEY_9 and action == glfw.PRESS:
         write_to_gif = not write_to_gif
     if key == glfw.KEY_SPACE and action == glfw.PRESS:
-        make_new_ship = True
-        change_skybox()
+        generate_next_ship()
     if key == glfw.KEY_P and action == glfw.PRESS:
         pause = not pause
     if key == glfw.KEY_T and action == glfw.PRESS:
@@ -438,7 +439,7 @@ if not window:
     raise Exception("glfw window can not be created!")
 
 # set window's position
-glfw.set_window_pos(window, 400, 200)
+glfw.set_window_pos(window, 40, 40)
 
 # set the callback function for window resize
 glfw.set_window_size_callback(window, window_resize_clb)
@@ -865,9 +866,8 @@ def generate_previous_ship(display=None):
 
 
 def generate_new_ship():
-    global spaceship
     global seed
-    spaceship = primatives.Spaceship3x3(
+    spaceship_next = primatives.Spaceship3x3(
         shader=shader,
         diffuse=spaceship_parameters['diffuse'],
         specular=spaceship_parameters['specular'],
@@ -884,9 +884,11 @@ def generate_new_ship():
         radius=3.0,
         scale=spaceship_parameters['scale'],
         seed=seed
-
     )
-    ships[0].model = spaceship
+    ships[0].model.clean_up()
+    del ships[0].model
+    gc.collect()
+    ships[0].model = spaceship_next
 
 
 """GUI CREATION"""
@@ -1675,13 +1677,90 @@ time_start = 0
 time_end = 1/60
 time_delta = 1.0
 
+projection = pyrr.matrix44.create_perspective_projection_matrix(45, WIDTH / HEIGHT, 0.1, 20050)
+glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection)
+
+
+"""
+    TESTING MEMORY MANGEMENT
+"""
+def create_list():
+    big_list = [1345] * 1000000
+    return big_list
+
+
+def destroy_list(big_list):
+    del big_list
+
+
+
+from ctypes import pointer
+def create_buffer():
+
+    vertices = np.array(
+        create_list(),
+        dtype=np.float32,
+    )
+
+    #one way to make a buffer
+    buffer = glGenBuffers(1)
+
+    glBindBuffer(GL_ARRAY_BUFFER, buffer)
+    glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
+    return buffer
+
+def populate_buffer(buffer):
+    pass
+
+def destroy_buffer(buffer):
+
+    #Attempt 1: failure (huge leak ~50mb per tick)
+    # del buffer
+    # gc.collect()
+
+    #Attempt 2: failure (huge leak)
+    # glBindBuffer(GL_ARRAY_BUFFER, buffer)
+    # del buffer
+    # gc.collect()
+    # glBindBuffer(GL_ARRAY_BUFFER, buffer)
+    glDeleteBuffers(1, [buffer])
+
+def lifecycle_buffers():
+    buffer = create_buffer()
+    destroy_buffer(buffer)
+
+
+counter = 0
+def auto_make_ships(counter):
+    if counter % 40 == 0:
+        generate_next_ship()
+    counter += 1
+    return counter
+
+
+def auto_click_ui(counter):
+    if counter % 40 == 0:
+        test_gui.toggle_context_status(context_id='ship_settings')
+    counter += 1
+    return counter
+
 while not glfw.window_should_close(window):
     glfw.poll_events()
     time_start = glfw.get_time()
     do_movement(speed=100 * (time_delta))
 
-    fps = my_fps.update()
-    display_fps.update_text(text=str(round(my_fps.get_fps(), 1)))
+    # fps = my_fps.update()
+    # display_fps.update_text(text=str(round(my_fps.get_fps(), 1)))
+
+    "Memory Management Investigation"
+    # lifecycle_buffers()
+
+    # big_list = create_list()
+    # destroy_list(big_list)
+
+    # counter = auto_make_ships(counter)
+    # counter = auto_click_ui(counter)
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
     view = active_camera.get_view_matrix()
@@ -1690,39 +1769,14 @@ while not glfw.window_should_close(window):
     for mesh in meshes:
         mesh.draw(view=view)
 
-    # for shape in shapes:
-    #     shape.draw(view=view)
-
     """Mouse Hover on GUI"""
     #todo: mouse hover is very expensive! Consider spatial partition
-    if use_follow_cam:
-        test_gui.button_update(position_mouse=glfw.get_cursor_pos(window), left_click=False, right_click=False)
+    # There seems to be a memory leak here
+    # if use_follow_cam:
+    #     test_gui.button_update(position_mouse=glfw.get_cursor_pos(window), left_click=False, right_click=False)
 
-
-
-    """draw new ship"""
-    if make_new_ship:
-        make_new_ship = False
-        generate_new_ship()
-
-    # draw the point light cube
-    # for light in debug_plcs:
-    #     light.draw(view)
-    glUseProgram(shader)
-
-    glUniformMatrix4fv(view_loc, 1, GL_FALSE, view)
-
-    projection = pyrr.matrix44.create_perspective_projection_matrix(45, WIDTH / HEIGHT, 0.1, 20050)
-    glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection)
-
-    # todo: old naive skybox system.  Remove later
-    # skybox.set_position(active_camera.camera_pos)
-    # skybox.draw(view=view)
-    # skybox_test.draw(view=view)
-    """NEW Skybox"""
     skybox_cube_map.draw(view=view, projection=projection)
     glUseProgram(shader)
-
 
     # pass cam position for specular light
     glUniform3fv(view_pos_loc, 1, list(active_camera.camera_pos))
@@ -1762,10 +1816,9 @@ while not glfw.window_should_close(window):
         window_as_numpy_arr = np.flip(window_as_numpy_arr, 0)
         window_as_PIL_image = Image.fromarray(window_as_numpy_arr)
         images.append(window_as_PIL_image)
-
-    """GUI TESTING"""
+    #
+    # """GUI TESTING"""
     test_gui.draw()
-
     glUseProgram(shader)
 
     glfw.swap_buffers(window)

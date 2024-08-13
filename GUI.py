@@ -30,6 +30,7 @@ goals:
             -allow each element to figure itself out
     -[V]activate/deactivate button by clicking other buttons
 """
+import gc
 import math
 import glm
 from OpenGL.GL import *
@@ -192,6 +193,7 @@ class GUI:
 
 
     def draw(self):
+        #TODO: draw all elements at once! (batch rendering)
         for element in self.elements + self.buttons:
             element.draw()
 
@@ -324,7 +326,6 @@ class GUI:
         )
 
 
-
 class Element:
 
     def __init__(
@@ -339,6 +340,10 @@ class Element:
             context_id='default',
             color=glm.vec4(1.0, 1.0, 1.0, 1.0),
     ):
+        self.color_loc = None
+        self.model_loc = None
+        self.VBO = None
+        self.VAO = None
         if shader == None:
             shader_default = compileProgram(
                 compileShader(vertex_src, GL_VERTEX_SHADER),
@@ -386,6 +391,13 @@ class Element:
             dtype=np.float32
         )
 
+    def clean_up(self):
+        glDeleteVertexArrays(1, [self.VAO])
+        glDeleteBuffers(1, [self.VBO])
+        del self.model_loc
+        del self.color_loc
+        gc.collect()
+
     def buffer_setup(self):
         # quad VAO
         self.VAO = glGenVertexArrays(1)
@@ -429,7 +441,6 @@ class Element:
         glEnable(GL_DEPTH_TEST)
         if self.text_box:
             self.text_box.draw()
-
 
     def update_text(self, text=None, color=None):
         self.text_box.update_text(text=text, color=color)
@@ -479,6 +490,7 @@ class Element:
             color=glm.vec4(color),
             centered=centered,
             )
+
 
 class Button(Element):
     """
@@ -586,6 +598,7 @@ class Button(Element):
         if self.check_mouse_hover(position_mouse=position_mouse):
             self.atlas_coordinate = self.atlas_coordinate_off
             self.vertices = self.generate_vertices()
+            self.clean_up()
             self.buffer_setup()
             if self.check_mouse_click(left_click):
                 if self.click_function:
@@ -593,12 +606,12 @@ class Button(Element):
                         self.click_function(*list(self.click_function_kwargs.values()))
                     else:
                         self.click_function()
-
                 else:
-                    print("No click function!")
+                    print("WARNING: No click function!")
         else:
             self.atlas_coordinate = self.atlas_coordinate_on
             self.vertices = self.generate_vertices()
+            self.clean_up()
             self.buffer_setup()
 
 
@@ -713,6 +726,8 @@ class Character(Element):
             ],
             dtype=np.float32
         )
+
+
 class TextBox(Character):
     """
     Much like Character, except takes a whole string and produces multiple quads
@@ -846,8 +861,8 @@ class TextBox(Character):
             self.text = text
         if color:
             self.color = glm.vec4(color)
-        del self.vertices
         self.vertices = self.generate_vertices()
+        self.clean_up()
         self.buffer_setup()
 
     def draw(self):

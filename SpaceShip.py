@@ -85,6 +85,7 @@ class Spaceship:
             else:
                 self.download_data()
                 self.goto_next_order()
+
     def upload_data(self, headquarters):
         if not headquarters:
             print("ERROR: cannot upload data, headquarters is None")
@@ -118,7 +119,6 @@ class Spaceship:
         elif self.state == 'park':
             pass
 
-
     def goto_next_order(self):
         """
         move to next value in order
@@ -132,8 +132,6 @@ class Spaceship:
         self.state = self.orders[self.index_orders][0]
         if self.state == 'move':
             self.target = self.orders[self.index_orders][1]
-
-
 
     def order_sell(self):
         good = self.orders[self.index_orders][1]['sell']
@@ -155,8 +153,6 @@ class Spaceship:
         # main program waits for thread to finish
         # my_thread.join()
 
-
-
     def order_buy(self):
         good = self.orders[self.index_orders][1]['buy']
         if self.target.cargo[good] > 0:
@@ -176,6 +172,7 @@ class Spaceship:
         if glm.distance(self.model.position, self.target.position) < self.target.trade_distance:
             return True
         return False
+
     def set_velocity(self, velocity=(0.0, 0.0, 0.0)):
         self.velocity = glm.vec3(velocity)
 
@@ -207,6 +204,7 @@ class Spaceship:
     @property
     def speed(self):
         return glm.length(self.velocity)
+
     def set_velocity_to_target(self, direction_normalized):
         """
         Change ship velocity to head towards target
