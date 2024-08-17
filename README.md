@@ -1,9 +1,13 @@
 # Procedurally Generated Spaceships
-A Python program that generates spaceships, vertex-by-vertex.  
-![BlenderShips](/GitHubExamples/demo.gif?raw=true)
+A Python program that generates infinite spaceships, vertex-by-vertex. 
+
+![BlenderShips](/GitHubExamples/ships_2by2.png?raw=true)
+
 
 ## Description
 Need 3D spaceship meshes for your game or animation?  Need ALOT of them?  Then you've come to the right place.  My procedural generation program uses RNG to build nifty little spaceships.  Use the UI to change the generation parameters and find your favorite ships.  Export the models with a single click and load into your game engine or 3D modeling software of choice.  
+
+![BlenderShips](/GitHubExamples/demo.gif?raw=true)
 
 **Export Ships to .obj format, and open in software like Blender!**
 ![BlenderShips](/GitHubExamples/BlenderDemoTwoShips.png?raw=true)
@@ -51,4 +55,5 @@ packaging==24.1
 zipp==3.19.2
 
 # Credits
+
 
