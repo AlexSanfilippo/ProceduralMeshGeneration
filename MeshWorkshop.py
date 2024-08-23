@@ -36,7 +36,7 @@ import random as r
 from random import random
 import numpy as np
 import glm
-from PIL import Image
+from PIL import Image, ImageOps
 import PointLightCube as plc
 import ProceduralMesh as primatives
 import FPSCounter
@@ -59,6 +59,16 @@ follow_cam = SimulationCamera(camera_pos=[6.0, 247.0, 242.0])
 # follow_cam = SimulationCamera(camera_pos=[0.0, 0.0, 0.0])
 cam = Camera(camera_pos=[0.0, 20.0, 20.0])
 use_follow_cam = False
+
+
+def capture_screenshot(filename='screenshot.jpg'):
+    print(f'saving screenshot as {filename}')
+    fbo_array = glReadPixels(0, 0, WIDTH, HEIGHT, GL_RGB, GL_UNSIGNED_BYTE)
+    screenshot = Image.frombytes("RGB", (WIDTH, HEIGHT), fbo_array)
+    screenshot = ImageOps.flip(screenshot)
+    screenshot.save(
+            filename,
+    )
 
 
 
@@ -122,6 +132,7 @@ def key_input_clb(window, key, scancode, action, mode):
     if key == glfw.KEY_2 and action == glfw.PRESS:
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
     if key == glfw.KEY_9 and action == glfw.PRESS:
+        print('Writing FBO to .gif')
         write_to_gif = not write_to_gif
     if key == glfw.KEY_SPACE and action == glfw.PRESS:
         generate_next_ship()
@@ -133,6 +144,8 @@ def key_input_clb(window, key, scancode, action, mode):
         switch_camera_mode()
     if key == glfw.KEY_K and action == glfw.PRESS:
         print_camera_position()
+    if key == glfw.KEY_F12 and action == glfw.PRESS:
+        capture_screenshot()
 
 
 def cycle_ship_texture(forward=True):
@@ -1302,7 +1315,7 @@ test_gui.add_text_element(
     font_texture=texture_dictionary['font_atlas'],
     font_size=0.35,
     font_color=(1.0, 1.0, 1.0, 1.0),
-    text='0.0',
+    text='100',
 )
 #todo refactor this.  Need way to access text/element we want to update
 display_fps = test_gui.elements[-1]
@@ -1679,87 +1692,18 @@ time_delta = 1.0
 
 projection = pyrr.matrix44.create_perspective_projection_matrix(45, WIDTH / HEIGHT, 0.1, 20050)
 glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection)
+display_fps.update_text(text='v1.0')
 
-
-"""
-    TESTING MEMORY MANGEMENT
-"""
-def create_list():
-    big_list = [1345] * 1000000
-    return big_list
-
-
-def destroy_list(big_list):
-    del big_list
-
-
-
-from ctypes import pointer
-def create_buffer():
-
-    vertices = np.array(
-        create_list(),
-        dtype=np.float32,
-    )
-
-    #one way to make a buffer
-    buffer = glGenBuffers(1)
-
-    glBindBuffer(GL_ARRAY_BUFFER, buffer)
-    glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
-    return buffer
-
-def populate_buffer(buffer):
-    pass
-
-def destroy_buffer(buffer):
-
-    #Attempt 1: failure (huge leak ~50mb per tick)
-    # del buffer
-    # gc.collect()
-
-    #Attempt 2: failure (huge leak)
-    # glBindBuffer(GL_ARRAY_BUFFER, buffer)
-    # del buffer
-    # gc.collect()
-    # glBindBuffer(GL_ARRAY_BUFFER, buffer)
-    glDeleteBuffers(1, [buffer])
-
-def lifecycle_buffers():
-    buffer = create_buffer()
-    destroy_buffer(buffer)
-
-
-counter = 0
-def auto_make_ships(counter):
-    if counter % 40 == 0:
-        generate_next_ship()
-    counter += 1
-    return counter
-
-
-def auto_click_ui(counter):
-    if counter % 40 == 0:
-        test_gui.toggle_context_status(context_id='ship_settings')
-    counter += 1
-    return counter
 
 while not glfw.window_should_close(window):
     glfw.poll_events()
     time_start = glfw.get_time()
     do_movement(speed=100 * (time_delta))
 
-    # fps = my_fps.update()
-    # display_fps.update_text(text=str(round(my_fps.get_fps(), 1)))
+    fps = my_fps.update()
+    # display_fps.update_text(text=str(round(my_fps.get_fps())))
 
-    "Memory Management Investigation"
-    # lifecycle_buffers()
 
-    # big_list = create_list()
-    # destroy_list(big_list)
-
-    # counter = auto_make_ships(counter)
-    # counter = auto_click_ui(counter)
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
@@ -1772,8 +1716,8 @@ while not glfw.window_should_close(window):
     """Mouse Hover on GUI"""
     #todo: mouse hover is very expensive! Consider spatial partition
     # There seems to be a memory leak here
-    # if use_follow_cam:
-    #     test_gui.button_update(position_mouse=glfw.get_cursor_pos(window), left_click=False, right_click=False)
+    if use_follow_cam:
+        test_gui.button_update(position_mouse=glfw.get_cursor_pos(window), left_click=False, right_click=False)
 
     skybox_cube_map.draw(view=view, projection=projection)
     glUseProgram(shader)
@@ -1811,23 +1755,25 @@ while not glfw.window_should_close(window):
     glUniform1f(glGetUniformLocation(shader, "spot_light.linear"), 0.00003)
     glUniform1f(glGetUniformLocation(shader, "spot_light.quadratic"), 0.00007)
 
-    if write_to_gif:
-        window_as_numpy_arr = np.uint8(glReadPixels(0, 0, 800, 800, GL_RGB, GL_FLOAT)*255.0)
-        window_as_numpy_arr = np.flip(window_as_numpy_arr, 0)
-        window_as_PIL_image = Image.fromarray(window_as_numpy_arr)
-        images.append(window_as_PIL_image)
-    #
-    # """GUI TESTING"""
     test_gui.draw()
     glUseProgram(shader)
+
+    if write_to_gif:
+        data = glReadPixels(0, 0, WIDTH, HEIGHT, GL_RGB, GL_UNSIGNED_BYTE)
+        image = Image.frombytes("RGB", (WIDTH, HEIGHT), data)
+        image = ImageOps.flip(image)
+        images.append(image)
+
 
     glfw.swap_buffers(window)
     time_end = glfw.get_time()
     time_delta = time_end - time_start
 
 if write_to_gif:
+    name = f'flyby.gif'
+    print(f'saving gif as {name}')
     images[0].save(
-            'workshop.gif',
+            name,
             save_all=True,
             append_images=images[1:],
             optimize=False,

@@ -417,6 +417,29 @@ class Element:
         self.model_loc = glGetUniformLocation(self.shader, "model")
         self.color_loc = glGetUniformLocation(self.shader, "color")
 
+    def replace_vertices(self):
+        """
+        like buffer_setup function, but does not allocate a new buffer.  Just gives new
+        vertex info to the existing buffer.  Thus, no clean_up call neccessary.
+        :return: None
+        """
+        glBindVertexArray(self.VAO)
+        glBindBuffer(GL_ARRAY_BUFFER, self.VBO)
+        glBufferData(GL_ARRAY_BUFFER, self.vertices.nbytes, self.vertices, GL_DYNAMIC_DRAW)
+        glBindVertexArray(0)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+
+        # # quad position vertices (vertex attribute)
+        # glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, self.vertices.itemsize * self.vertices_count, ctypes.c_void_p(0))
+        # glEnableVertexAttribArray(0)
+        # # quad texture coords
+        # glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, self.vertices.itemsize * self.vertices_count, ctypes.c_void_p(8))
+        # glEnableVertexAttribArray(1)
+        #
+        # self.model_loc = glGetUniformLocation(self.shader, "model")
+        # self.color_loc = glGetUniformLocation(self.shader, "color")
+
+
     def draw(self):
         glUseProgram(self.shader)
         glBindVertexArray(self.VAO)
@@ -598,8 +621,9 @@ class Button(Element):
         if self.check_mouse_hover(position_mouse=position_mouse):
             self.atlas_coordinate = self.atlas_coordinate_off
             self.vertices = self.generate_vertices()
-            self.clean_up()
-            self.buffer_setup()
+            # self.clean_up()
+            # self.buffer_setup()
+            self.replace_vertices()
             if self.check_mouse_click(left_click):
                 if self.click_function:
                     if self.click_function_kwargs:
@@ -611,8 +635,9 @@ class Button(Element):
         else:
             self.atlas_coordinate = self.atlas_coordinate_on
             self.vertices = self.generate_vertices()
-            self.clean_up()
-            self.buffer_setup()
+            # self.clean_up()
+            # self.buffer_setup()
+            self.replace_vertices()
 
 
 class Character(Element):
@@ -862,8 +887,9 @@ class TextBox(Character):
         if color:
             self.color = glm.vec4(color)
         self.vertices = self.generate_vertices()
-        self.clean_up()
-        self.buffer_setup()
+        # self.clean_up()
+        # self.buffer_setup()
+        self.replace_vertices()
 
     def draw(self):
         glUseProgram(self.shader)

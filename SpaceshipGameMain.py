@@ -560,39 +560,19 @@ glUniform3fv(glGetUniformLocation(shader, "dir_light.specular"), 1, direction_sp
 
 """Tile Sets"""
 #simplest possible tileset: cross, straight(x2), and blank
-tile_textures = glGenTextures(13)
-load_texture("Textures/penguin_atlas_emission.png", tile_textures[0])
-load_texture("Textures/penguin_atlas_emission.png", tile_textures[1])
-load_texture("Textures/beige_atlas_diffuse.png", tile_textures[2])
-load_texture("Textures/debug_quad_red.png", tile_textures[3])
-load_texture("Textures/penguin_atlas_specular.png", tile_textures[4])
-load_texture("Textures/penguin_atlas_specular.png", tile_textures[5])
-load_texture("Textures/debug_texture_atlas.png", tile_textures[6])
-load_texture("Textures/spaceship_texture_atlas_1.png", tile_textures[7])
-load_texture("Textures/spaceship_texture_atlas_1_specular.png", tile_textures[8])
-load_texture("Textures/spaceship_texture_atlas_1_emission.png", tile_textures[9])
-load_texture("Textures/debug_texture_atlas_2.png", tile_textures[10])
-load_texture("Textures/debug_texture_atlas_2_emission.png", tile_textures[11])
-load_texture("Textures/debug_texture_atlas_2_specular.png", tile_textures[12])
+tile_textures = glGenTextures(2)
+load_texture("Textures/debug_quad_red.png", tile_textures[0])
+
 
 
 texture_dictionary = {
-    "pink": tile_textures[3],
-    "penguin_diffuse": tile_textures[2],
-    "penguin_emission": tile_textures[1],
-    "penguin_specular": tile_textures[4],
-    "spaceship_diffuse": tile_textures[7],
-    "spaceship_specular": tile_textures[8],
-    "spaceship_emission": tile_textures[9],
-    "atlas_debug_diffuse": tile_textures[10],
-    "atlas_debug_emission": tile_textures[11],
-    "atlas_debug_specular": tile_textures[12],
+    "debug_red": tile_textures[0],
 }
 
 headquarters_model = ProceduralMesh.CubeMeshStatic(
     shader=shader,
-    diffuse=texture_dictionary['pink'],
-    specular=texture_dictionary['pink'],
+    diffuse=texture_dictionary["debug_red"],
+    specular=texture_dictionary["debug_red"],
     dimensions=[3.0, 3.0, 3.0],
     position=[20.0, 10.0, -20.0]
 )
@@ -600,16 +580,16 @@ headquarters = Headquarters(model=headquarters_model)
 
 testing_model = primatives.Prism(
     shader=shader,
-    diffuse=texture_dictionary['pink'],
-    specular=texture_dictionary['pink'],
+    diffuse=texture_dictionary["debug_red"],
+    specular=texture_dictionary["debug_red"],
     dimensions=[2.0, 2.0],
     position=[25.0, 10, 25],
     sides=4,
 )
 testing_model_b = primatives.Prism(
     shader=shader,
-    diffuse=texture_dictionary['pink'],
-    specular=texture_dictionary['pink'],
+    diffuse=texture_dictionary["debug_red"],
+    specular=texture_dictionary["debug_red"],
     dimensions=[2.0, 2.0],
     position=[-25.0, -10, -25],
     sides=8,
@@ -671,15 +651,15 @@ for ship in range(num_ships):
 
     spaceship = primatives.Spaceship(
         shader=shader,
-        # diffuse=texture_dictionary['atlas_debug_diffuse'],
-        # specular=texture_dictionary['atlas_debug_specular'],
-        # emission=texture_dictionary['atlas_debug_emission'],
+        # diffuse=texture_dictionary["debug_red"],
+        # specular=texture_dictionary["debug_red"],
+        # emission=texture_dictionary["debug_red"],
         # diffuse=texture_dictionary['spaceship_diffuse'],
         # specular=texture_dictionary['spaceship_specular'],
         # emission=texture_dictionary['spaceship_emission'],
-        diffuse=texture_dictionary["penguin_diffuse"],
-        emission=texture_dictionary["penguin_emission"],
-        specular=texture_dictionary["penguin_specular"],
+        diffuse=texture_dictionary["debug_red"],
+        emission=texture_dictionary["debug_red"],
+        specular=texture_dictionary["debug_red"],
         dimensions=[5.0, 5.0],
         position=[(random()-0.5)*100, (random()-0.5)*50, (random()-0.5)*50],
         rotation_magnitude=[0.0, 0.0, -m.pi*0.5],
@@ -708,8 +688,8 @@ for ship in range(num_ships):
 
 bezier_cube = primatives.NPrismBezierCut(
     shader=shader,
-    diffuse=texture_dictionary["atlas_debug_diffuse"],
-    specular=texture_dictionary["penguin_diffuse"],
+    diffuse=texture_dictionary["debug_red"],
+    specular=texture_dictionary["debug_red"],
     shininess=32.0,
     dimensions=[2.0],
     position=[0.0, 5.0, -5.0],
@@ -722,8 +702,8 @@ bezier_cube = primatives.NPrismBezierCut(
 
 testing_model_polygon = primatives.Polygon(
     shader=shader,
-    diffuse=texture_dictionary['penguin_diffuse'],
-    specular=texture_dictionary['penguin_diffuse'],
+    diffuse=texture_dictionary["debug_red"],
+    specular=texture_dictionary["debug_red"],
     dimensions=[20.0, 2.0],
     position=[5.0, 0.0, 0.0],
     sides=4,
@@ -731,9 +711,9 @@ testing_model_polygon = primatives.Polygon(
 
 testing_primative_mesh_emission = primatives.PrimativeMeshEmission(
     shader=shader,
-    diffuse=texture_dictionary['atlas_debug_diffuse'],
-    specular=texture_dictionary['atlas_debug_specular'],
-    emission=texture_dictionary['atlas_debug_emission'],
+    diffuse=texture_dictionary["debug_red"],
+    specular=texture_dictionary["debug_red"],
+    emission=texture_dictionary["debug_red"],
     dimensions=[10.0, 10.0],
     position=[20.0, 10.0, 0.0],
 )
@@ -792,8 +772,8 @@ for coordinates, position in galaxy_map.items():
     print(position)
     star_model = primatives.Prism(
             shader=shader,
-            diffuse=texture_dictionary['pink'],
-            specular=texture_dictionary['pink'],
+            diffuse=texture_dictionary["debug_red"],
+            specular=texture_dictionary["debug_red"],
             dimensions=[6.0, 6.0],
             position=position,
             sides=3,
@@ -845,9 +825,9 @@ while not glfw.window_should_close(window):
         seed += 1
         spaceship = primatives.Spaceship(
             shader=shader,
-            diffuse=texture_dictionary["penguin_diffuse"],
-            specular=texture_dictionary["penguin_specular"],
-            emission=texture_dictionary["penguin_emission"],
+            diffuse=texture_dictionary["debug_red"],
+            specular=texture_dictionary["debug_red"],
+            emission=texture_dictionary["debug_red"],
             dimensions=[5.0, 5.0],
             position=ships[0].model.position,
             rotation_magnitude=ships[0].model.rotation_magnitude,
