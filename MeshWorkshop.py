@@ -1,62 +1,35 @@
 """
-6th April, 2024
-last update: 6th April 2024
-Displaying Proc-Gen Meshes for testing/developement
-
--[V]Make this file
--[V]Add code to generate and draw meshes in a meshes list which is drawn
--[V]remove code related to ship trading game
--[V]fix texture coordinate bug in bevel_cut
-    -[V]extruded face bug
-    -[V]side faces bug
-        -requires doing glTexCoord4f(s,t,0,q) instead of glTexCoord2f(s,t)
-            -where?
-            -where s,t are our texture coords as they are
-            -must calculate q
--[V]Change texture filtering to Nearest
--[V]Add UI
-    -[V]Display textured quad on screen
-    -[V]click textured quad-change quad color or something
-
+Main script of the spaceship generator.  run this to launch the OpenGL window.
+Contains high-level code pertaining creation and drawing of:
+Model
+GUI
+Skybox
+As well as OpenGL callback functions
 """
-import math
-import threading
-from collections import defaultdict
+
 
 import glfw
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
 import pyrr
-
-import ProceduralMesh
 from TextureLoader import load_texture
-from Camera import Camera, FollowCamera, SimulationCamera
-import math as m
+from Camera import Camera, SimulationCamera
+from math import pi
 import random as r
-from random import random
-import numpy as np
 import glm
 from PIL import Image, ImageOps
 import PointLightCube as plc
-import ProceduralMesh as primatives
+from ProceduralMesh import Spaceship3x3
 import FPSCounter
-import SpaceShip
 from GUI import GUI
 import Skybox as CubeMapSkybox
 from tkinter import filedialog
 import gc
-from math import floor
 
-#AUDIO
-from pydub import AudioSegment
-from pydub.playback import play
-
-
-
+DEV_BUILD = True
 images = []
 
 follow_cam = SimulationCamera(camera_pos=[6.0, 247.0, 242.0])
-# follow_cam = SimulationCamera(camera_pos=[0.0, 0.0, 0.0])
 cam = Camera(camera_pos=[0.0, 20.0, 20.0])
 use_follow_cam = False
 
@@ -72,9 +45,7 @@ def capture_screenshot(filename='screenshot.jpg'):
 
 
 
-# WIDTH, HEIGHT = 1280, 720
 WIDTH, HEIGHT = 1728, 972
-# WIDTH, HEIGHT = 64, 64
 lastX, lastY = WIDTH / 2, HEIGHT / 2
 first_mouse = True
 left, right, forward, backward, make_new_surface = False, False, False, False, False
@@ -82,6 +53,7 @@ player_left, player_right, player_forward, player_backward = False, False, False
 yaw_counterclockwise, yaw_clockwise = False, False
 up, down = False, False
 write_to_gif = False
+wrote_to_gif = False
 make_new_ship = False
 pause = False
 ship_texture_cycle_id = 0
@@ -90,7 +62,7 @@ ship_texture_cycle_id = 0
 def key_input_clb(window, key, scancode, action, mode):
     global left, right, forward, backward, make_new_surface, player_left, player_right, player_forward, \
         player_backward, yaw_counterclockwise, yaw_clockwise, write_to_gif, make_new_ship,\
-        pause, ship_texture_cycle_id, up, down
+        pause, ship_texture_cycle_id, up, down, wrote_to_gif
 
     if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
         glfw.set_window_should_close(window, True)
@@ -126,14 +98,14 @@ def key_input_clb(window, key, scancode, action, mode):
         down = True
     elif key == glfw.KEY_LEFT_SHIFT and action == glfw.RELEASE:
         down = False
-
     if key == glfw.KEY_1 and action == glfw.PRESS:
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
     if key == glfw.KEY_2 and action == glfw.PRESS:
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
     if key == glfw.KEY_9 and action == glfw.PRESS:
-        print('Writing FBO to .gif')
-        write_to_gif = not write_to_gif
+        if DEV_BUILD:
+            write_to_gif = not write_to_gif
+            wrote_to_gif = True
     if key == glfw.KEY_SPACE and action == glfw.PRESS:
         generate_next_ship()
     if key == glfw.KEY_P and action == glfw.PRESS:
@@ -143,7 +115,8 @@ def key_input_clb(window, key, scancode, action, mode):
     if key == glfw.KEY_V and action == glfw.PRESS:
         switch_camera_mode()
     if key == glfw.KEY_K and action == glfw.PRESS:
-        print_camera_position()
+        if DEV_BUILD:
+            print_camera_position()
     if key == glfw.KEY_F12 and action == glfw.PRESS:
         capture_screenshot()
 
@@ -191,12 +164,13 @@ def mouse_button_callback(window, button, action, mods):
     right_click = button == glfw.MOUSE_BUTTON_RIGHT and action == glfw.PRESS
     if button == left_click:
        mpos = glfw.get_cursor_pos(window)
-    test_gui.button_update(position_mouse=glfw.get_cursor_pos(window), left_click=left_click, right_click=right_click)
+    gui.button_update(position_mouse=glfw.get_cursor_pos(window), left_click=left_click, right_click=right_click)
+
 
 def update_spaceship_texture():
-    ships[0].model.set_diffuse(spaceship_parameters['diffuse'])
-    ships[0].model.set_specular(spaceship_parameters['specular'])
-    ships[0].model.set_emission(spaceship_parameters['emission'])
+    meshes[0].set_diffuse(spaceship_parameters['diffuse'])
+    meshes[0].set_specular(spaceship_parameters['specular'])
+    meshes[0].set_emission(spaceship_parameters['emission'])
 
 
 def do_movement(speed=1.0):
@@ -437,6 +411,7 @@ def window_resize_clb(window, width, height):
     glViewport(0, 0, width, height)
     projection = pyrr.matrix44.create_perspective_projection_matrix(45, width / height, 0.1, 2000)
     glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection)
+    gui.set_screen_size(screen_size=(width, height))
 
 
 # initializing glfw library
@@ -490,7 +465,7 @@ shader = compileProgram(compileShader(vertex_src, GL_VERTEX_SHADER), compileShad
 
 
 #uncomment to enable backfase culling
-# glEnable(GL_CULL_FACE)
+glEnable(GL_CULL_FACE)
 #uncomment to see that cull is working by culling front faces rather than back
 # glCullFace(GL_BACK)
 # glFrontFace(GL_CW)
@@ -779,59 +754,18 @@ def decrease_ship_z_scaling(display=None):
     display.update_text(text=str(round(float(display.text_box.text) - delta, 2)))
 
 
-"""Texture Coordinate Debugging Models"""
-shapes = []
-for sides in list(range(3, 13)):
-    shapes.append(primatives.Polygon(
-        shader=shader,
-        diffuse=spaceship_parameters['diffuse'],
-        specular=spaceship_parameters['specular'],
-        dimensions=[5.0, 5.0],
-        position=[0.0, 0.0, sides*10],
-        rotation_magnitude=[0.0, 0.0, -m.pi * 0.5],
-        scale=spaceship_parameters['scale'],
-        sides=sides,
-        transform_x=2.0,
-        transform_z=1.0,
-    ))
-
-"""Testing trapezoid texturing algorithm"""
-shapes.append(
-    primatives.PolygonIrregular(
-        shader=shader,
-        diffuse=spaceship_parameters['diffuse'],
-        specular=spaceship_parameters['specular'],
-        dimensions=[5.0, 5.0],
-        position=[10.0, 0.0, 40],
-        rotation_magnitude=[0.0, 0.0, -m.pi * 0.5],
-        scale=spaceship_parameters['scale'],
-        sides=4,
-        transform_x=1.0,
-        transform_z=1.0,
-        radii=[2.0, 1.0, 1.0, 2.0]
-    )
-)
-
 ships = []
 num_ships = 1
 for ship in range(num_ships):
-    spaceship = primatives.Spaceship3x3(
+    spaceship = Spaceship3x3(
         shader=shader,
-        # diffuse=texture_dictionary['atlas_debug_diffuse'],
-        # specular=texture_dictionary['atlas_debug_specular'],
-        # emission=texture_dictionary['atlas_debug_emission'],
         diffuse=spaceship_parameters['diffuse'],
         specular=spaceship_parameters['specular'],
         emission=spaceship_parameters['emission'],
-
-        # diffuse=texture_dictionary["penguin_diffuse"],
-        # emission=texture_dictionary["penguin_emission"],
-        # specular=texture_dictionary["penguin_specular"],
         dimensions=[5.0, 5.0],
         position=spaceship_parameters['position'],
-        rotation_magnitude=[0.0, 0.0, -m.pi*0.5],
+        rotation_magnitude=[0.0, 0.0, -pi*0.5],
         number_of_sides=spaceship_parameters['number_of_sides'],
-        # number_of_segments=spaceship_parameters['number_of_segments'],
         number_of_segments=spaceship_parameters['number_of_segments'],
         transform_x=spaceship_parameters['transform_x'],
         transform_z=spaceship_parameters['transform_z'],
@@ -840,13 +774,7 @@ for ship in range(num_ships):
         scale=spaceship_parameters['scale'],
         seed=seed
     )
-    ship_current = SpaceShip.Spaceship(model=spaceship, wallet=50)
-    ship_current.set_velocity(velocity=[-1.5, 0.0, 0.0])
-    ships.append(ship_current)
-
-    ship_current.set_orders(
-        orders=[['stuck']]
-    )
+    ships.append(spaceship)
 
 
 my_fps = FPSCounter.FPSCounter(frame_interval=300.0, mute=True)
@@ -855,12 +783,15 @@ my_fps = FPSCounter.FPSCounter(frame_interval=300.0, mute=True)
 meshes = []
 meshes += ships
 
+
 def increase_seed():
     global seed
     seed += 1
+
 def decrease_seed():
     global seed
     seed -= 1
+
 
 def generate_next_ship(display=None):
     global seed
@@ -880,14 +811,15 @@ def generate_previous_ship(display=None):
 
 def generate_new_ship():
     global seed
-    spaceship_next = primatives.Spaceship3x3(
+    global meshes
+    spaceship_next = Spaceship3x3(
         shader=shader,
         diffuse=spaceship_parameters['diffuse'],
         specular=spaceship_parameters['specular'],
         emission=spaceship_parameters['emission'],
         dimensions=[5.0, 5.0],
-        position=ships[0].model.position,
-        rotation_magnitude=ships[0].model.rotation_magnitude,
+        position=ships[0].position,
+        rotation_magnitude=ships[0].rotation_magnitude,
         rotation_axis=glm.vec3((0.0, 0.0, 1.0)),
         number_of_sides=spaceship_parameters['number_of_sides'],
         number_of_segments=spaceship_parameters['number_of_segments'],
@@ -898,15 +830,15 @@ def generate_new_ship():
         scale=spaceship_parameters['scale'],
         seed=seed
     )
-    ships[0].model.clean_up()
-    del ships[0].model
+    meshes[0].clean_up()
+    del meshes[0]
     gc.collect()
-    ships[0].model = spaceship_next
+    meshes.append(spaceship_next)
 
 
 """GUI CREATION"""
-test_gui = GUI(screen_size=(WIDTH, HEIGHT))
-test_gui.add_text_element(
+gui = GUI(screen_size=(WIDTH, HEIGHT))
+gui.add_text_element(
     shader=None,
     position=(0.75, 0.73),
     scale=(0.20, 0.05),
@@ -920,7 +852,7 @@ test_gui.add_text_element(
     font_color=(1.0, 1.0, 1.0, 1.0),
     text='Texture',
 )
-test_gui.add_text_button(
+gui.add_text_button(
     shader=None,
     position=(0.95, 0.73),
     scale=(0.05, 0.05),
@@ -936,7 +868,7 @@ test_gui.add_text_button(
     font_color=(1.0, 1.0, 1.0, 1.0),
     text='+',
 )
-test_gui.add_text_button(
+gui.add_text_button(
     shader=None,
     position=(0.5, 0.73),
     scale=(0.05, 0.05),
@@ -954,14 +886,14 @@ test_gui.add_text_button(
     text='-',
 )
 
-test_gui.add_text_button(
+gui.add_text_button(
     shader=None,
     position=(0.88, 0.95),
     scale=(0.12, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=(2, 1),
-    click_function=test_gui.toggle_context_status,
+    click_function=gui.toggle_context_status,
     context_id='context_on',
     context_status=True,
     click_function_context_id='button',
@@ -972,7 +904,7 @@ test_gui.add_text_button(
     text='Options',
 )
 
-test_gui.add_text_element(
+gui.add_text_element(
     shader=None,
     position=(-0.25, 0.83),
     scale=(0.08, 0.05),
@@ -987,8 +919,8 @@ test_gui.add_text_element(
     text=str(spaceship_parameters['number_of_sides']),
 )
 #todo refactor this.  Need way to access text/element we want to update
-displayer = test_gui.elements[-1]
-test_gui.add_text_button(
+displayer = gui.elements[-1]
+gui.add_text_button(
     shader=None,
     position=(-0.38, 0.83),
     scale=(0.05, 0.05),
@@ -1005,7 +937,7 @@ test_gui.add_text_button(
     font_color=(1.0, 1.0, 1.0, 1.0),
     text='+',
 )
-test_gui.add_text_button(
+gui.add_text_button(
     shader=None,
     position=(-0.48, 0.83),
     scale=(0.05, 0.05),
@@ -1022,7 +954,7 @@ test_gui.add_text_button(
     font_color=(1.0, 1.0, 1.0, 1.0),
     text='-',
 )
-test_gui.add_text_element(
+gui.add_text_element(
     shader=None,
     # position=(-0.5, -0.0),
     position=(-0.78, 0.83), #-.28, +0.83
@@ -1038,7 +970,7 @@ test_gui.add_text_element(
     text='Sides',
 )
 
-test_gui.add_text_element(
+gui.add_text_element(
     shader=None,
     position=(-0.25, 0.73),
     scale=(0.08, 0.05),
@@ -1053,8 +985,8 @@ test_gui.add_text_element(
     text=str(spaceship_parameters['number_of_segments']),
 )
 #todo refactor this.  Need way to access text/element we want to update
-displayer = test_gui.elements[-1]
-test_gui.add_text_button(
+displayer = gui.elements[-1]
+gui.add_text_button(
     shader=None,
     position=(-0.48, .73),
     scale=(0.05, 0.05),
@@ -1071,7 +1003,7 @@ test_gui.add_text_button(
     font_color=(1.0, 1.0, 1.0, 1.0),
     text='-',
 )
-test_gui.add_text_button(
+gui.add_text_button(
     shader=None,
     position=(-0.38, 0.73),
     scale=(0.05, 0.05),
@@ -1088,7 +1020,7 @@ test_gui.add_text_button(
     font_color=(1.0, 1.0, 1.0, 1.0),
     text='+',
 )
-test_gui.add_text_element(
+gui.add_text_element(
     shader=None,
     position=(-0.78, 0.73),
     scale=(0.25, 0.05),
@@ -1104,7 +1036,7 @@ test_gui.add_text_element(
 )
 
 
-test_gui.add_text_element(
+gui.add_text_element(
     shader=None,
     position=(-0.25, 0.63),
     scale=(0.08, 0.05),
@@ -1119,8 +1051,8 @@ test_gui.add_text_element(
     text='10.0',
 )
 #todo refactor this.  Need way to access text/element we want to update
-displayer = test_gui.elements[-1]
-test_gui.add_text_element(
+displayer = gui.elements[-1]
+gui.add_text_element(
     shader=None,
     position=(-0.78,  0.63),
     scale=(0.25, 0.05),
@@ -1134,7 +1066,7 @@ test_gui.add_text_element(
     font_color=(1.0, 1.0, 1.0, 1.0),
     text='Length Scale',
 )
-test_gui.add_text_button(
+gui.add_text_button(
     shader=None,
     position=(-0.38,  0.63),
     scale=(0.05, 0.05),
@@ -1151,7 +1083,7 @@ test_gui.add_text_button(
     font_color=(1.0, 1.0, 1.0, 1.0),
     text='+',
 )
-test_gui.add_text_button(
+gui.add_text_button(
     shader=None,
     position=(-0.48,  0.63),
     scale=(0.05, 0.05),
@@ -1169,7 +1101,7 @@ test_gui.add_text_button(
     text='-',
 )
 
-test_gui.add_text_element(
+gui.add_text_element(
     shader=None,
     position=(-0.78, 0.53),
     scale=(0.25, 0.05),
@@ -1183,7 +1115,7 @@ test_gui.add_text_element(
     font_color=(1.0, 1.0, 1.0, 1.0),
     text='Height Scale',
 )
-test_gui.add_text_element(
+gui.add_text_element(
     shader=None,
     position=(-0.25, 0.53),
     scale=(0.08, 0.05),
@@ -1198,8 +1130,8 @@ test_gui.add_text_element(
     text='1.0',
 )
 #todo refactor this.  Need way to access text/element we want to update
-displayer = test_gui.elements[-1]
-test_gui.add_text_button(
+displayer = gui.elements[-1]
+gui.add_text_button(
     shader=None,
     position=(-0.48, 0.53),
     scale=(0.05, 0.05),
@@ -1217,7 +1149,7 @@ test_gui.add_text_button(
     text='-',
 )
 
-test_gui.add_text_button(
+gui.add_text_button(
     shader=None,
     position=(-0.38, 0.53),
     scale=(0.05, 0.05),
@@ -1237,7 +1169,7 @@ test_gui.add_text_button(
 
 
 
-test_gui.add_text_element(
+gui.add_text_element(
     shader=None,
     position=(-0.78, 0.42999999999999994),
     scale=(0.25, 0.05),
@@ -1251,7 +1183,7 @@ test_gui.add_text_element(
     font_color=(1.0, 1.0, 1.0, 1.0),
     text='Width Scale',
 )
-test_gui.add_text_element(
+gui.add_text_element(
     shader=None,
     position=(-0.25, 0.42999999999999994),
     scale=(0.08, 0.05),
@@ -1266,8 +1198,8 @@ test_gui.add_text_element(
     text='2.0',
 )
 #todo refactor this.  Need way to access text/element we want to update
-displayer = test_gui.elements[-1]
-test_gui.add_text_button(
+displayer = gui.elements[-1]
+gui.add_text_button(
     shader=None,
     position=(-0.48, 0.42999999999999994),
     scale=(0.05, 0.05),
@@ -1285,7 +1217,7 @@ test_gui.add_text_button(
     text='-',
 )
 
-test_gui.add_text_button(
+gui.add_text_button(
     shader=None,
     position=(-0.38, 0.42999999999999994),
     scale=(0.05, 0.05),
@@ -1303,7 +1235,7 @@ test_gui.add_text_button(
     text='+',
 )
 
-test_gui.add_text_element(
+gui.add_text_element(
     shader=None,
     position=(-0.90, 0.95),
     scale=(0.15, 0.05),
@@ -1318,17 +1250,17 @@ test_gui.add_text_element(
     text='100',
 )
 #todo refactor this.  Need way to access text/element we want to update
-display_fps = test_gui.elements[-1]
+display_fps = gui.elements[-1]
 
 
-test_gui.add_text_button(
+gui.add_text_button(
     shader=None,
     position=(-0.55, 0.95),
     scale=(0.22, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=(2, 1),
-    click_function=test_gui.toggle_context_status,
+    click_function=gui.toggle_context_status,
     context_id='context_on',
     context_status=True,
     click_function_context_id='ship_settings',
@@ -1339,7 +1271,7 @@ test_gui.add_text_button(
     text='Ship Settings',
 )
 
-test_gui.add_text_element(
+gui.add_text_element(
     shader=None,
     position=(0.75, 0.83),
     scale=(0.20, 0.05),
@@ -1354,8 +1286,8 @@ test_gui.add_text_element(
     text='Seed: ' + str(seed),
 )
 #todo refactor this.  Need way to access text/element we want to update
-displayer = test_gui.elements[-1]
-test_gui.add_text_button(
+displayer = gui.elements[-1]
+gui.add_text_button(
     shader=None,
     position=(0.95, 0.83),
     scale=(0.05, 0.05),
@@ -1372,7 +1304,7 @@ test_gui.add_text_button(
     font_color=(1.0, 1.0, 1.0, 1.0),
     text='+',
 )
-test_gui.add_text_button(
+gui.add_text_button(
     shader=None,
     position=(0.50, 0.83),
     scale=(0.05, 0.05),
@@ -1390,14 +1322,14 @@ test_gui.add_text_button(
     text='-',
 )
 
-test_gui.add_text_button(
+gui.add_text_button(
     shader=None,
     position=(-0.185, 0.95),
     scale=(0.15, 0.05),
     texture=texture_dictionary['button_atlas'],
     atlas_size=2,
     atlas_coordinate=(2, 1),
-    click_function=test_gui.toggle_context_status,
+    click_function=gui.toggle_context_status,
     context_id='context_on',
     context_status=True,
     click_function_context_id='light',
@@ -1407,7 +1339,7 @@ test_gui.add_text_button(
     font_color=(1.0, 1.0, 1.0, 1.0),
     text='Light',
 )
-test_gui.add_text_element(
+gui.add_text_element(
     shader=None,
     position=(0.75, 0.52),
     scale=(0.20, 0.05),
@@ -1421,8 +1353,8 @@ test_gui.add_text_element(
     font_color=(1.0, 1.0, 1.0, 1.0),
     text='Ambient',
 )
-displayer = test_gui.elements[-1]
-test_gui.add_text_button(
+displayer = gui.elements[-1]
+gui.add_text_button(
     shader=None,
     position=(0.95, 0.52),
     scale=(0.05, 0.05),
@@ -1439,7 +1371,7 @@ test_gui.add_text_button(
     text='+',
 )
 
-test_gui.add_text_button(
+gui.add_text_button(
     shader=None,
     position=(0.50, 0.52),
     scale=(0.05, 0.05),
@@ -1457,7 +1389,7 @@ test_gui.add_text_button(
 )
 
 #Specular
-test_gui.add_text_element(
+gui.add_text_element(
     shader=None,
     position=(0.75, 0.42),
     scale=(0.20, 0.05),
@@ -1471,8 +1403,8 @@ test_gui.add_text_element(
     font_color=(1.0, 1.0, 1.0, 1.0),
     text='Specular',
 )
-displayer = test_gui.elements[-1]
-test_gui.add_text_button(
+displayer = gui.elements[-1]
+gui.add_text_button(
     shader=None,
     position=(0.95, 0.42),
     scale=(0.05, 0.05),
@@ -1489,7 +1421,7 @@ test_gui.add_text_button(
     text='+',
 )
 
-test_gui.add_text_button(
+gui.add_text_button(
     shader=None,
     position=(0.50, 0.42),
     scale=(0.05, 0.05),
@@ -1507,7 +1439,7 @@ test_gui.add_text_button(
 )
 
 #Diffuse
-test_gui.add_text_element(
+gui.add_text_element(
     shader=None,
     position=(0.75, 0.32),
     scale=(0.20, 0.05),
@@ -1521,8 +1453,8 @@ test_gui.add_text_element(
     font_color=(1.0, 1.0, 1.0, 1.0),
     text='Diffuse',
 )
-displayer = test_gui.elements[-1]
-test_gui.add_text_button(
+displayer = gui.elements[-1]
+gui.add_text_button(
     shader=None,
     position=(0.95, 0.32),
     scale=(0.05, 0.05),
@@ -1539,7 +1471,7 @@ test_gui.add_text_button(
     text='+',
 )
 
-test_gui.add_text_button(
+gui.add_text_button(
     shader=None,
     position=(0.50, 0.32),
     scale=(0.05, 0.05),
@@ -1559,13 +1491,13 @@ test_gui.add_text_button(
 
 def export_ship():
     """
-    Export the ship model as a wavefront obj file
+    Open Window to export the ship model as a wavefront obj file with name of choice
     """
     filename = filedialog.asksaveasfilename()
-    meshes[0].model.export_as_obj(filename=filename)
+    meshes[0].export_as_obj(filename=filename)
 
 
-test_gui.add_text_button(
+gui.add_text_button(
     shader=None,
     position=(0.11, 0.95),
     scale=(0.15, 0.05),
@@ -1582,40 +1514,6 @@ test_gui.add_text_button(
     text='Export',
 )
 
-
-
-
-
-"""SKYBOX"""
-skybox = ProceduralMesh.SkyboxEmission(
-    shader=shader,
-    # material properties
-    diffuse=texture_dictionary["whoa_emission"],
-    specular=texture_dictionary["whoa_emission"],
-    emission=texture_dictionary["skybox_nebula"],
-    shininess=0.0,
-    # mesh properties
-    dimensions=(5.0, 5.0, 5.0),
-    position=active_camera.camera_pos,
-    rotation_magnitude=(0, 0, 0),
-    rotation_axis=(0.0, 0.0, 1.0),
-    scale=(1000.0, 1000.0, 1000.0),)
-
-skybox_test = ProceduralMesh.SkyboxEmission(
-    shader=shader,
-    # material properties
-    diffuse=texture_dictionary["whoa_emission"],
-    specular=texture_dictionary["whoa_emission"],
-    emission=texture_dictionary["atlas_debug_diffuse"],
-    shininess=0.0,
-    # mesh properties
-    dimensions=(5.0, 5.0, 5.0),
-    position=(0.0, 50.0, 0.0),
-    rotation_magnitude=(0, 0, 0),
-    rotation_axis=(0.0, 0.0, 1.0),
-    scale=(50.0, 50.0, 50.0),)
-
-"""NEW: cubemap skybox"""
 
 cubemaps = {
     2: [
@@ -1664,8 +1562,7 @@ def change_skybox():
     )
 
 
-
-test_gui.add_text_button(
+gui.add_text_button(
     shader=None,
     position=(0.75, 0.63),
     scale=(0.3, 0.05),
@@ -1684,28 +1581,38 @@ test_gui.add_text_button(
 
 
 #must call as final setup of GUI
-test_gui.build_elements_list()
+gui.build_elements_list()
 
+#decouple fps from camera movement with time delta
 time_start = 0
 time_end = 1/60
 time_delta = 1.0
 
 projection = pyrr.matrix44.create_perspective_projection_matrix(45, WIDTH / HEIGHT, 0.1, 20050)
 glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection)
-display_fps.update_text(text='v1.0')
+
+if not DEV_BUILD:
+    display_fps.update_text(text='v1.0')
+
+
+def write_fbo_to_gif():
+    global data, image
+    data = glReadPixels(0, 0, WIDTH, HEIGHT, GL_RGB, GL_UNSIGNED_BYTE)
+    image = Image.frombytes("RGB", (WIDTH, HEIGHT), data)
+    image = ImageOps.flip(image)
+    images.append(image)
 
 
 while not glfw.window_should_close(window):
     glfw.poll_events()
     time_start = glfw.get_time()
     do_movement(speed=100 * (time_delta))
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
     fps = my_fps.update()
-    # display_fps.update_text(text=str(round(my_fps.get_fps())))
+    # if DEV_BUILD:
+    #     display_fps.update_text(text=str(round(my_fps.get_fps())))
 
-
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
     view = active_camera.get_view_matrix()
     glUniformMatrix4fv(view_loc, 1, GL_FALSE, view)
@@ -1713,11 +1620,10 @@ while not glfw.window_should_close(window):
     for mesh in meshes:
         mesh.draw(view=view)
 
-    """Mouse Hover on GUI"""
-    #todo: mouse hover is very expensive! Consider spatial partition
-    # There seems to be a memory leak here
+    #GUI hover events
+    #todo: mouse hover is maybe expensive! Consider spatial partition
     if use_follow_cam:
-        test_gui.button_update(position_mouse=glfw.get_cursor_pos(window), left_click=False, right_click=False)
+        gui.button_update(position_mouse=glfw.get_cursor_pos(window), left_click=False, right_click=False)
 
     skybox_cube_map.draw(view=view, projection=projection)
     glUseProgram(shader)
@@ -1755,22 +1661,19 @@ while not glfw.window_should_close(window):
     glUniform1f(glGetUniformLocation(shader, "spot_light.linear"), 0.00003)
     glUniform1f(glGetUniformLocation(shader, "spot_light.quadratic"), 0.00007)
 
-    test_gui.draw()
-    glUseProgram(shader)
+    if use_follow_cam:
+        gui.draw()
+        glUseProgram(shader)
 
     if write_to_gif:
-        data = glReadPixels(0, 0, WIDTH, HEIGHT, GL_RGB, GL_UNSIGNED_BYTE)
-        image = Image.frombytes("RGB", (WIDTH, HEIGHT), data)
-        image = ImageOps.flip(image)
-        images.append(image)
-
+        write_fbo_to_gif()
 
     glfw.swap_buffers(window)
     time_end = glfw.get_time()
     time_delta = time_end - time_start
 
-if write_to_gif:
-    name = f'flyby.gif'
+if wrote_to_gif:
+    name = f'spaceship_generator.gif'
     print(f'saving gif as {name}')
     images[0].save(
             name,

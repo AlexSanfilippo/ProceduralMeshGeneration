@@ -1,5 +1,6 @@
 import glfw
 
+
 class FPSCounter:
     """
     calculates frames per second and seconds per frame
@@ -14,7 +15,7 @@ class FPSCounter:
         self.seconds_per_frame = 1.0/260.0
         self.spf_interval = spf_interval
         self.mute = mute
-        self.fps = 1.0
+        self.fps = 10000.0
 
     def update(self):
         if self.refresh_time:

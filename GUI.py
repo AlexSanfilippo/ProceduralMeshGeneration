@@ -290,6 +290,8 @@ class GUI:
         for button in self.buttons:
             button.update(position_mouse=position_mouse_normalized, left_click=left_click, right_click=right_click)
 
+    def set_screen_size(self, screen_size):
+        self.screen_size = screen_size
     def update_context_maps(self, element, status=True):
         if element.context_id in self.context_id_to_status.keys():
             self.context_id_to_status[element.context_id] = status
@@ -599,6 +601,8 @@ class Button(Element):
         check if the mouse is inside this element
         :return: Bool
         """
+        # position_mouse.x = 0.475
+        # position_mouse.y = 0.049
         if position_mouse.x < self.bounds['horizontal_upper'] \
             and position_mouse.x > self.bounds['horizontal_lower'] \
             and position_mouse.y > self.bounds['vertical_lower'] \
