@@ -23,7 +23,7 @@ OpenGL is essentially a machine that takes in the vertices of triangles and turn
 -repeat the process on any of the faces  
 
 ## How to use:
-If you just want to play with the compiled program, check it out (for FREE!) on itch.io: 
+If you just want to play with the compiled program, download it (for FREE!) on itch.io: 
 [[Spaceship Generator 3D](https://ceruleanboolean141.itch.io/spaceship-maker)]
 
 
@@ -44,7 +44,7 @@ packaging==24.1
 zipp==3.19.2  
 
 # Credits
-Skyboxes were sources from the following cites: 
+Skyboxes were sourced from the following cites: 
 [[Mountain Lake](https://learnopengl.com/Advanced-OpenGL/Cubemaps)]
 [[Starry Sky](https://opengameart.org/content/galaxy-skybox)]
 [[Mountain Lake](https://opengameart.org/content/space-nebulas-skybox)]
