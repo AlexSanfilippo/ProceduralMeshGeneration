@@ -15,45 +15,39 @@ Need 3D spaceship meshes for your game or animation?  Need ALOT of them?  Then y
 ## How the ships are generated
 OpenGL is essentially a machine that takes in the vertices of triangles and turns them into colored pixels on your screen.  To procedurally generate a model is simply to define these triangles.  
 
-The procedure begins by drawing a regular N-sided Polygon on the XZ axis, centered about the origin: 
-()Image of polygons
-The polygon is then decomposed into triangles:
-()image of polygon decomposition
-Using the normal vector of the polygon, and a given distance, we add the vector to each vertex
-to create a new vertex.  These new vertices form a similar polygon.  This process is called "Extruding". 
-()image of extruding
-The two faces are then conjoined together to form a prism in a process I call "switching".
-()Image of stitching process
+-generate an N-sided regular polygon face  
+-calculate the normal of the polygon  
+-extrude vertices along the normal to create N new vertices, creating a geometrically similar polygon  
+-scale the new polygon  
+-connect the two polygons with quadrilaterals to form a closed shape  
+-repeat the process on any of the faces  
 
-
-  -All code in python, except for shaders, which are GLSL
-Procedural generation system 
-  -Origin->face
-  -Triangulize the face
-  -Extrude the face
-  -Switch two similar faces
-
-(How to use it)
+## How to use:
 If you just want to play with the compiled program, check it out (for FREE!) on itch.io: 
-[ITCH LINK TO COME]
+[[Spaceship Generator 3D](https://ceruleanboolean141.itch.io/spaceship-maker)]
 
-If you would like to run the code for yourself, you will need the following python packages
 
 How to run this code:
--pip install the required packages (see below)\n
--Run the file MeshWorkshop.py\n
-**REQUIRED PACKAGES**\n
-altgraph==0.17.4\n
-cachetools==5.4.0\n
-ffmpeg==1.4\n
-future==1.0.0
-glfw==2.7.0
-importlib_metadata==8.2.0
-multipledispatch==1.0.0
-numpy==1.26.4
-packaging==24.1
-zipp==3.19.2
+-pip install the required packages (see below)  
+-Run the file MeshWorkshop.py  
+**REQUIRED PACKAGES**  
+If you would like to run the code for yourself, you will need the following python packages:  
+altgraph==0.17.4  
+cachetools==5.4.0  
+ffmpeg==1.4  
+future==1.0.0  
+glfw==2.7.0  
+importlib_metadata==8.2.0  
+multipledispatch==1.0.0  
+numpy==1.26.4  
+packaging==24.1  
+zipp==3.19.2  
 
 # Credits
+Skyboxes were sources from the following cites: 
+[[Mountain Lake](https://learnopengl.com/Advanced-OpenGL/Cubemaps)]
+[[Starry Sky](https://opengameart.org/content/galaxy-skybox)]
+[[Mountain Lake](https://opengameart.org/content/space-nebulas-skybox)]
+
 
 
