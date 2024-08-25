@@ -42,6 +42,11 @@ multipledispatch==1.0.0
 numpy==1.26.4  
 packaging==24.1  
 zipp==3.19.2  
+PyOpenGL==3.1.7  
+pillow==10.2.0  
+PyGLM==2.7.1  
+pyrr==0.10.3  
+
 
 # Credits
 Skyboxes were sourced from the following cites: 
